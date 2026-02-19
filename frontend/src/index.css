@@ -4,3 +4,9 @@ body {
   font-family: 'Inter', sans-serif;
   letter-spacing: -0.2px;
 }
+
+.premium-input {
+  @apply w-full p-3 rounded-xl border border-gray-300 bg-white
+  focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+  outline-none transition-all duration-300;
+}
