@@ -1,4 +1,6 @@
-// Default Hardcoded Admin
+// ===============================
+// DEFAULT HARDCODED ADMIN
+// ===============================
 const DEFAULT_ADMIN = {
   username: "admin",
   email: "admin@gmail.com",
@@ -7,6 +9,9 @@ const DEFAULT_ADMIN = {
   photo: ""
 };
 
+// ===============================
+// INITIALIZE ADMIN
+// ===============================
 export const initializeAdmin = () => {
   const users = JSON.parse(localStorage.getItem("allUsers")) || [];
 
@@ -18,6 +23,9 @@ export const initializeAdmin = () => {
   }
 };
 
+// ===============================
+// LOGGED USER SAVE / GET
+// ===============================
 export const saveUser = (user) => {
   localStorage.setItem("loggedUser", JSON.stringify(user));
 };
@@ -30,6 +38,9 @@ export const logout = () => {
   localStorage.removeItem("loggedUser");
 };
 
+// ===============================
+// ALL USERS
+// ===============================
 export const getAllUsers = () => {
   return JSON.parse(localStorage.getItem("allUsers")) || [];
 };
@@ -38,10 +49,16 @@ export const saveAllUsers = (users) => {
   localStorage.setItem("allUsers", JSON.stringify(users));
 };
 
+// ===============================
+// REQUEST SYSTEM
+// ===============================
 export const saveRequest = (request) => {
   const requests = JSON.parse(localStorage.getItem("requests")) || [];
 
-  const alreadyRequested = requests.find(r => r.username === request.username);
+  const alreadyRequested = requests.find(
+    r => r.username === request.username
+  );
+
   if (alreadyRequested) {
     alert("You already sent request.");
     return;
@@ -56,6 +73,8 @@ export const getRequests = () => {
 };
 
 export const removeRequest = (username) => {
-  const requests = getRequests().filter(r => r.username !== username);
+  const requests = getRequests().filter(
+    r => r.username !== username
+  );
   localStorage.setItem("requests", JSON.stringify(requests));
 };
