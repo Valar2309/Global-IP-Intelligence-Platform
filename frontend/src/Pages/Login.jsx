@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+
 import { getAllUsers, saveUser, getRequests } from "../utils/auth";
 
 export default function Login() {
@@ -26,6 +27,7 @@ export default function Login() {
     );
 
     if (!user) {
+
       toast.error("Invalid username or password");
       return;
     }
@@ -62,6 +64,7 @@ export default function Login() {
   };
 
   return (
+
     <div className="wrapper">
       <div className="login-card">
 
@@ -87,6 +90,7 @@ export default function Login() {
         <input
           type="password"
           placeholder="Password"
+
           value={form.password}
           onChange={(e) =>
             setForm({ ...form, password: e.target.value })

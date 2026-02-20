@@ -1,4 +1,5 @@
 // ===============================
+
 // DEFAULT ADMIN
 // ===============================
 const DEFAULT_ADMIN = {
@@ -24,6 +25,7 @@ export const initializeAdmin = () => {
 };
 
 // ===============================
+
 // SESSION MANAGEMENT
 // ===============================
 export const saveUser = (user) => {
@@ -56,6 +58,7 @@ export const saveRequest = (request) => {
   const requests = JSON.parse(localStorage.getItem("requests")) || [];
 
   const alreadyRequested = requests.find(
+
     (r) => r.username === request.username
   );
 
@@ -73,6 +76,7 @@ export const getRequests = () => {
 };
 
 export const removeRequest = (username) => {
+
   const updated = getRequests().filter(
     (r) => r.username !== username
   );

@@ -7,15 +7,18 @@ import {
   removeRequest,
   logout,
 } from "../utils/auth";
+
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const user = getUser();
-
+ 
   if (!user || user.role !== "ADMIN") {
     return (
+
       <div className="flex items-center justify-center min-h-screen">
         <h2 className="text-2xl font-semibold text-red-500">
           Access Denied
@@ -104,9 +107,44 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     logout();
     navigate("/login");
-  };
 
+  };
+ 
+  const revokeAccess = (username) => {
+    const updatedUsers = users.map((u) =>
+      u.username === username ? { ...u, role: "USER" } : u
+    );
+ 
+    saveAllUsers(updatedUsers);
+    alert(`Access revoked for ${username}`);
+    window.location.reload();
+  };
+ 
+  const filings = [
+    { id: 1, type: "Patent", status: "Expiring" },
+    { id: 2, type: "Trademark", status: "Active" },
+    { id: 3, type: "Patent", status: "Expiring" },
+  ];
+ 
+  const auditLog = [
+    "Feb 15 – ✅ User Shraddha promoted to Analyst",
+    "Feb 14 – ❌ Access revoked for Rahul",
+    "Feb 13 – 📌 Admin Sindhu approved 2 requests",
+  ];
+ 
+  const topUsers = [
+    { name: "Shraddha", filings: 25 },
+    { name: "Rahul", filings: 18 },
+    { name: "Meera", filings: 15 },
+  ];
+ 
+  const feedback = [
+    { from: "User A", message: "Add dark mode option" },
+    { from: "Analyst B", message: "Export filings as Excel" },
+  ];
+ 
   return (
+
     <div className="min-h-screen bg-gray-100 p-6 md:p-10">
 
       {/* HEADER */}
@@ -147,12 +185,14 @@ export default function AdminDashboard() {
             <button
               onClick={() => approveRequest(r.username)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+
             >
               Approve
             </button>
           </div>
         ))}
       </Section>
+
 
       {/* USERS SECTION */}
       <Section title="All Users">
@@ -214,6 +254,7 @@ export default function AdminDashboard() {
   );
 }
 
+
 const Section = ({ title, children }) => (
   <div className="bg-white p-6 rounded-2xl shadow mb-12">
     <h2 className="text-xl font-semibold mb-6">{title}</h2>
@@ -222,6 +263,7 @@ const Section = ({ title, children }) => (
 );
 
 const StatCard = ({ label, value }) => (
+ shivanand-frontend-setup
   <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow text-center">
     <p className="text-sm opacity-80">{label}</p>
     <p className="text-2xl font-bold mt-2">{value}</p>

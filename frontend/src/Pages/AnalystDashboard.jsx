@@ -1,3 +1,4 @@
+shivanand-frontend-setup
 import { useState, useMemo } from "react";
 import { getUser } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
@@ -52,8 +53,43 @@ export default function AnalystDashboard() {
     a.download = "filings.json";
     a.click();
   };
-
+ 
+  const revokeAccess = (username) => {
+    const updatedUsers = users.map((u) =>
+      u.username === username ? { ...u, role: "USER" } : u
+    );
+ 
+    saveAllUsers(updatedUsers);
+ 
+    toast.error(`Access revoked for ${username}`);
+    setTimeout(() => window.location.reload(), 1000);
+  };
+ 
+  const filings = [
+    { id: 1, type: "Patent", status: "Expiring" },
+    { id: 2, type: "Trademark", status: "Active" },
+    { id: 3, type: "Patent", status: "Expiring" },
+  ];
+ 
+  const auditLog = [
+    "Feb 15 – ✅ User Shraddha promoted to Analyst",
+    "Feb 14 – ❌ Access revoked for Rahul",
+    "Feb 13 – 📌 Admin Sindhu approved 2 requests",
+  ];
+ 
+  const topUsers = [
+    { name: "Shraddha", filings: 25 },
+    { name: "Rahul", filings: 18 },
+    { name: "Meera", filings: 15 },
+  ];
+ 
+  const feedback = [
+    { from: "User A", message: "Add dark mode option" },
+    { from: "Analyst B", message: "Export filings as Excel" },
+  ];
+ 
   return (
+
     <div className="min-h-screen bg-gray-100 p-6 md:p-10">
 
       {/* HEADER WITH PROFILE BUTTON */}

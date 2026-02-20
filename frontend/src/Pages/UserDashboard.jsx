@@ -1,4 +1,5 @@
 import { getUser } from "../utils/auth";
+
 import { useNavigate } from "react-router-dom";
 
 export default function UserDashboard() {
@@ -19,6 +20,7 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 px-4 sm:px-10 py-16">
 
       {/* Welcome Banner */}
+
       <div className="mb-14 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight">
@@ -58,6 +60,7 @@ export default function UserDashboard() {
           focus:border-indigo-500
           outline-none transition-all duration-300 mb-6"
         />
+
 
         <div className="flex flex-wrap gap-4 text-sm">
           <Tag text="Patent" />
