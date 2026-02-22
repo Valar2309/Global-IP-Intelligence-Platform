@@ -1,4 +1,3 @@
-shivanand-frontend-setup
 import { useState, useMemo } from "react";
 import { getUser } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
@@ -7,17 +6,10 @@ export default function AnalystDashboard() {
   const user = getUser();
   const navigate = useNavigate();
 
-  if (!user || user.role !== "ANALYST") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <h2 className="text-2xl font-semibold text-red-500">
-          Access Denied
-        </h2>
-      </div>
-    );
-  }
+  // ===============================
+  // 🔹 HOOKS (Always at top)
+  // ===============================
 
-  // Dummy filings data
   const [filings] = useState([
     { id: 1, type: "Patent", status: "Active", country: "US" },
     { id: 2, type: "Trademark", status: "Pending", country: "India" },
@@ -42,6 +34,24 @@ export default function AnalystDashboard() {
     expired: filings.filter((f) => f.status === "Expired").length,
   };
 
+  // ===============================
+  // 🚫 ACCESS CONTROL (After hooks)
+  // ===============================
+
+  if (!user || user.role !== "ANALYST") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <h2 className="text-2xl font-semibold text-red-500">
+          Access Denied
+        </h2>
+      </div>
+    );
+  }
+
+  // ===============================
+  // 📦 EXPORT FUNCTION
+  // ===============================
+
   const exportData = () => {
     const blob = new Blob(
       [JSON.stringify(filings, null, 2)],
@@ -53,46 +63,14 @@ export default function AnalystDashboard() {
     a.download = "filings.json";
     a.click();
   };
- 
-  const revokeAccess = (username) => {
-    const updatedUsers = users.map((u) =>
-      u.username === username ? { ...u, role: "USER" } : u
-    );
- 
-    saveAllUsers(updatedUsers);
- 
-    toast.error(`Access revoked for ${username}`);
-    setTimeout(() => window.location.reload(), 1000);
-  };
- 
-  const filings = [
-    { id: 1, type: "Patent", status: "Expiring" },
-    { id: 2, type: "Trademark", status: "Active" },
-    { id: 3, type: "Patent", status: "Expiring" },
-  ];
- 
-  const auditLog = [
-    "Feb 15 – ✅ User Shraddha promoted to Analyst",
-    "Feb 14 – ❌ Access revoked for Rahul",
-    "Feb 13 – 📌 Admin Sindhu approved 2 requests",
-  ];
- 
-  const topUsers = [
-    { name: "Shraddha", filings: 25 },
-    { name: "Rahul", filings: 18 },
-    { name: "Meera", filings: 15 },
-  ];
- 
-  const feedback = [
-    { from: "User A", message: "Add dark mode option" },
-    { from: "Analyst B", message: "Export filings as Excel" },
-  ];
- 
+
+  // ===============================
+  // 🖥️ UI
+  // ===============================
+
   return (
-
     <div className="min-h-screen bg-gray-100 p-6 md:p-10">
-
-      {/* HEADER WITH PROFILE BUTTON */}
+      {/* HEADER */}
       <div className="mb-10 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold">
@@ -182,7 +160,6 @@ export default function AnalystDashboard() {
           <li>🔔 Weekly analytics report ready</li>
         </ul>
       </div>
-
     </div>
   );
 }

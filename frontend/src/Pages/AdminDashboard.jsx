@@ -11,21 +11,13 @@ import {
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const user = getUser();
- 
-  if (!user || user.role !== "ADMIN") {
-    return (
 
-      <div className="flex items-center justify-center min-h-screen">
-        <h2 className="text-2xl font-semibold text-red-500">
-          Access Denied
-        </h2>
-      </div>
-    );
-  }
+  // ===============================
+  // 🔹 HOOKS (Always at the top)
+  // ===============================
 
   const [users, setUsers] = useState(getAllUsers());
   const [requests, setRequests] = useState(getRequests());
@@ -34,9 +26,9 @@ export default function AdminDashboard() {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [requestSearch, setRequestSearch] = useState("");
 
-  // =======================
+  // ===============================
   // 📊 STATISTICS
-  // =======================
+  // ===============================
 
   const stats = useMemo(() => {
     return {
@@ -47,9 +39,9 @@ export default function AdminDashboard() {
     };
   }, [users]);
 
-  // =======================
-  // FILTERED USERS
-  // =======================
+  // ===============================
+  // 🔎 FILTER LOGIC
+  // ===============================
 
   const filteredUsers = useMemo(() => {
     return users
@@ -67,22 +59,24 @@ export default function AdminDashboard() {
     );
   }, [requests, requestSearch]);
 
-  // =======================
-  // ACTIONS
-  // =======================
+  // ===============================
+  // 🔧 ACTIONS
+  // ===============================
 
-  const updateUsers = (updated) => {
-    saveAllUsers(updated);
-    setUsers(updated);
+  const updateUsers = (updatedUsers) => {
+    saveAllUsers(updatedUsers);
+    setUsers(updatedUsers);
   };
 
   const approveRequest = (username) => {
     const updated = users.map((u) =>
       u.username === username ? { ...u, role: "ANALYST" } : u
     );
+
     updateUsers(updated);
     removeRequest(username);
     setRequests(requests.filter((r) => r.username !== username));
+
     toast.success("User promoted to Analyst");
   };
 
@@ -90,6 +84,7 @@ export default function AdminDashboard() {
     const updated = users.map((u) =>
       u.username === username ? { ...u, role: "USER" } : u
     );
+
     updateUsers(updated);
     toast.info("Role changed to USER");
   };
@@ -99,54 +94,38 @@ export default function AdminDashboard() {
       toast.error("Cannot delete main admin");
       return;
     }
+
     const updated = users.filter((u) => u.username !== username);
     updateUsers(updated);
+
     toast.success("User deleted");
   };
 
   const handleLogout = () => {
     logout();
     navigate("/login");
-
   };
- 
-  const revokeAccess = (username) => {
-    const updatedUsers = users.map((u) =>
-      u.username === username ? { ...u, role: "USER" } : u
+
+  // ===============================
+  // 🚫 ACCESS CONTROL (AFTER HOOKS)
+  // ===============================
+
+  if (!user || user.role !== "ADMIN") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <h2 className="text-2xl font-semibold text-red-500">
+          Access Denied
+        </h2>
+      </div>
     );
- 
-    saveAllUsers(updatedUsers);
-    alert(`Access revoked for ${username}`);
-    window.location.reload();
-  };
- 
-  const filings = [
-    { id: 1, type: "Patent", status: "Expiring" },
-    { id: 2, type: "Trademark", status: "Active" },
-    { id: 3, type: "Patent", status: "Expiring" },
-  ];
- 
-  const auditLog = [
-    "Feb 15 – ✅ User Shraddha promoted to Analyst",
-    "Feb 14 – ❌ Access revoked for Rahul",
-    "Feb 13 – 📌 Admin Sindhu approved 2 requests",
-  ];
- 
-  const topUsers = [
-    { name: "Shraddha", filings: 25 },
-    { name: "Rahul", filings: 18 },
-    { name: "Meera", filings: 15 },
-  ];
- 
-  const feedback = [
-    { from: "User A", message: "Add dark mode option" },
-    { from: "Analyst B", message: "Export filings as Excel" },
-  ];
- 
+  }
+
+  // ===============================
+  // 🖥️ UI
+  // ===============================
+
   return (
-
     <div className="min-h-screen bg-gray-100 p-6 md:p-10">
-
       {/* HEADER */}
       <div className="flex justify-between items-center mb-10">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
@@ -176,6 +155,10 @@ export default function AdminDashboard() {
           className="p-2 border rounded-lg mb-6 w-full md:w-1/2"
         />
 
+        {filteredRequests.length === 0 && (
+          <p className="text-gray-500">No pending requests</p>
+        )}
+
         {filteredRequests.map((r, i) => (
           <div
             key={i}
@@ -185,7 +168,6 @@ export default function AdminDashboard() {
             <button
               onClick={() => approveRequest(r.username)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-
             >
               Approve
             </button>
@@ -193,10 +175,8 @@ export default function AdminDashboard() {
         ))}
       </Section>
 
-
       {/* USERS SECTION */}
       <Section title="All Users">
-
         <div className="grid md:grid-cols-2 gap-4 mb-6">
           <input
             type="text"
@@ -241,7 +221,7 @@ export default function AdminDashboard() {
 
                 <button
                   onClick={() => deleteUser(u.username)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
                 >
                   Delete
                 </button>
@@ -249,11 +229,18 @@ export default function AdminDashboard() {
             )}
           </div>
         ))}
+
+        {filteredUsers.length === 0 && (
+          <p className="text-gray-500">No users found</p>
+        )}
       </Section>
     </div>
   );
 }
 
+// ===============================
+// 🔹 Reusable Components
+// ===============================
 
 const Section = ({ title, children }) => (
   <div className="bg-white p-6 rounded-2xl shadow mb-12">
@@ -263,7 +250,6 @@ const Section = ({ title, children }) => (
 );
 
 const StatCard = ({ label, value }) => (
- shivanand-frontend-setup
   <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow text-center">
     <p className="text-sm opacity-80">{label}</p>
     <p className="text-2xl font-bold mt-2">{value}</p>

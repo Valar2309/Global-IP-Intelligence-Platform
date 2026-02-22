@@ -4,7 +4,6 @@ import com.ipplatform.backend.model.Role;
 import com.ipplatform.backend.model.User;
 import com.ipplatform.backend.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
