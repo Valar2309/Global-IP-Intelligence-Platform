@@ -16,6 +16,10 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     role: "USER",
+    idType: "AADHAAR", // default selection
+    aadhaar: "",
+    pan: "",
+    proofFile: null,
   });
 
   const handleRegister = () => {
@@ -50,12 +54,34 @@ export default function Register() {
     saveAllUsers([...users, newUser]);
 
     if (form.role === "ANALYST") {
+      // ✅ Validate Aadhaar or PAN based on selection
+      if (form.idType === "AADHAAR") {
+        if (!form.aadhaar || form.aadhaar.length !== 12) {
+          toast.error("Aadhaar must be 12 digits");
+          return;
+        }
+      }
+      if (form.idType === "PAN") {
+        if (!form.pan || form.pan.length !== 10) {
+          toast.error("PAN must be 10 characters");
+          return;
+        }
+      }
+      if (!form.proofFile) {
+        toast.error("Identity proof file is required");
+        return;
+      }
+
       saveRequest({
         username: form.username,
         requestedRole: "ANALYST",
         status: "PENDING",
+        idType: form.idType,
+        aadhaar: form.idType === "AADHAAR" ? form.aadhaar : null,
+        pan: form.idType === "PAN" ? form.pan : null,
+        proofFileName: form.proofFile.name,
       });
-      toast.success("Analyst request submitted.");
+      toast.success("Analyst request submitted with identity proof.");
     } else {
       toast.success("Account created successfully.");
     }
@@ -101,14 +127,19 @@ export default function Register() {
           }
         />
 
-        <input
-          type="password"
-          placeholder="Confirm password"
-          value={form.confirmPassword}
-          onChange={(e) =>
-            setForm({ ...form, confirmPassword: e.target.value })
-          }
-        />
+       <input
+  type="password"
+  placeholder="Confirm password"
+  value={form.confirmPassword}
+  onChange={(e) =>
+    setForm({ ...form, confirmPassword: e.target.value })
+  }
+  className={`border p-2 w-full mb-4 rounded-lg ${
+    form.confirmPassword && form.confirmPassword !== form.password
+      ? "border-red-500"
+      : "border-gray-300"
+  }`}
+/>
 
         <select
           value={form.role}
@@ -120,11 +151,72 @@ export default function Register() {
           <option value="ANALYST">Analyst</option>
         </select>
 
+        {/* ✅ Aadhaar vs PAN Toggle for Analysts */}
+        {form.role === "ANALYST" && (
+          <>
+            <div className="flex gap-4 mb-4">
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg ${
+                  form.idType === "AADHAAR"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+                onClick={() => setForm({ ...form, idType: "AADHAAR" })}
+              >
+                Aadhaar
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg ${
+                  form.idType === "PAN"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+                onClick={() => setForm({ ...form, idType: "PAN" })}
+              >
+                PAN
+              </button>
+            </div>
+
+            {form.idType === "AADHAAR" && (
+              <input
+                type="text"
+                placeholder="Enter Aadhaar Number"
+                maxLength={12}
+                value={form.aadhaar}
+                onChange={(e) =>
+                  setForm({ ...form, aadhaar: e.target.value })
+                }
+              />
+            )}
+
+            {form.idType === "PAN" && (
+              <input
+                type="text"
+                placeholder="Enter PAN Number"
+                maxLength={10}
+                value={form.pan}
+                onChange={(e) =>
+                  setForm({ ...form, pan: e.target.value })
+                }
+              />
+            )}
+
+            <input
+              type="file"
+              accept=".pdf,.jpg,.png"
+              onChange={(e) =>
+                setForm({ ...form, proofFile: e.target.files[0] })
+              }
+            />
+          </>
+        )}
+
         <button className="primary-btn" onClick={handleRegister}>
           Create Account
         </button>
 
-        {/* ✅ Login Button Added */}
         <button
           className="secondary-btn"
           onClick={() => navigate("/login")}
@@ -170,6 +262,10 @@ export default function Register() {
           font-weight: 600;
           color: #38bdf8;
         }
+.border-red-500 {
+  border-color: #ef4444 !important; /* Tailwind red-500 */
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.4);
+}
 
         .brand p {
           font-size: 12px;
@@ -230,7 +326,7 @@ export default function Register() {
           transform: translateY(-2px);
         }
 
-        @media (max-width: 500px) {
+@media (max-width: 500px) {
           .register-card {
             padding: 35px 25px;
           }
