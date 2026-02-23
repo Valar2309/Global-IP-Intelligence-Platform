@@ -7,6 +7,31 @@ import java.util.List;
 @Table(name = "users")
 public class User {
 
+    /**
+     * Account lifecycle:
+     *
+     *  LOCAL USER:
+     *   register → ACTIVE → can login immediately
+     *
+     *  ANALYST:
+     *   register → PENDING_DOCUMENT  (must upload identity docs)
+     *       ↓ uploads docs + submits
+     *   PENDING_REVIEW  (admin reviews documents)
+     *       ↓
+     *   admin approves → ACTIVE      (can login)
+     *   admin rejects  → REJECTED    (blocked)
+     *
+     *  OAUTH USER:
+     *   Google login → ACTIVE immediately
+     */
+    public enum AccountStatus {
+        ACTIVE,
+        PENDING_DOCUMENT,
+        PENDING_REVIEW,
+        REJECTED,
+        SUSPENDED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -14,15 +39,12 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
-    // Nullable — OAuth users have no password
     @Column
     private String password;
 
-    // "local" for username/password users, "google" for OAuth users
     @Column(nullable = false)
     private String provider = "local";
 
-    // Google's unique user ID — null for local users
     @Column(name = "provider_id")
     private String providerId;
 
@@ -37,36 +59,21 @@ public class User {
     @Column(name = "role")
     private List<String> roles;
 
-    // ✅ NEW FIELD — Analyst approval mechanism
-    @Column(nullable = false)
-    private boolean approved = true;
+    /**
+     * columnDefinition with DEFAULT 'ACTIVE' tells PostgreSQL to use 'ACTIVE'
+     * for any existing rows when Hibernate adds this column via ddl-auto=update.
+     * Without this, adding NOT NULL to a table with existing rows fails because
+     * PostgreSQL sees NULL values before the default is applied.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'ACTIVE'")
+    private AccountStatus accountStatus = AccountStatus.ACTIVE;
 
-    // ── Constructors ─────────────────────────────────────────────────────────────
+    // ── Constructors ──────────────────────────────────────────────────────────
 
     public User() {}
 
-    // For local (username/password) users
-    public User(String username, String password, List<String> roles) {
-        this.username = username;
-        this.password = password;
-        this.roles = roles;
-        this.provider = "local";
-        this.approved = true;  // default for USER
-    }
-
-    // For OAuth (Google) users
-    public User(String username, String email, String name,
-                String provider, String providerId, List<String> roles) {
-        this.username = username;
-        this.email = email;
-        this.name = name;
-        this.provider = provider;
-        this.providerId = providerId;
-        this.roles = roles;
-        this.approved = true;  // OAuth users auto-approved
-    }
-
-    // ── Getters & Setters ────────────────────────────────────────────────────────
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
     public Long getId() { return id; }
 
@@ -91,7 +98,11 @@ public class User {
     public List<String> getRoles() { return roles; }
     public void setRoles(List<String> roles) { this.roles = roles; }
 
-    // ✅ Approved Getter/Setter
-    public boolean isApproved() { return approved; }
-    public void setApproved(boolean approved) { this.approved = approved; }
+    public AccountStatus getAccountStatus() { return accountStatus; }
+    public void setAccountStatus(AccountStatus accountStatus) { this.accountStatus = accountStatus; }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    public boolean isActive()          { return accountStatus == AccountStatus.ACTIVE; }
+    public boolean isPendingDocument() { return accountStatus == AccountStatus.PENDING_DOCUMENT; }
+    public boolean isPendingReview()   { return accountStatus == AccountStatus.PENDING_REVIEW; }
 }

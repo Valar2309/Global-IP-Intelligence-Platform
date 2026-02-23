@@ -2,17 +2,27 @@ package com.ipplatform.backend.controller;
 
 import com.ipplatform.backend.model.Role;
 import com.ipplatform.backend.model.User;
+import com.ipplatform.backend.model.User.AccountStatus;
 import com.ipplatform.backend.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Admin endpoints for user and role management.
+ *
+ * NOTE: Analyst approval/rejection is handled by AdminAnalystReviewController.
+ * This controller handles general user listing and role assignment only.
+ */
 @RestController
 @RequestMapping("/api/admin/users")
-//@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
 
     private final UserRepository userRepository;
@@ -21,26 +31,33 @@ public class AdminUserController {
         this.userRepository = userRepository;
     }
 
-    // ── List all users (NOW includes approval status) ─────────────────────────
+    // ── List all users ────────────────────────────────────────────────────────
 
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> listUsers() {
         List<Map<String, Object>> users = userRepository.findAll().stream()
-                .map(u -> Map.<String, Object>of(
-                        "id",       u.getId(),
-                        "username", u.getUsername(),
-                        "email",    u.getEmail(),
-                        "roles",    u.getRoles(),
-                        "provider", u.getProvider(),
-                        "approved", u.isApproved()   // ✅ added
-                ))
+                .map(u -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id",            u.getId());
+                    m.put("username",      u.getUsername());
+                    m.put("email",         u.getEmail()  != null ? u.getEmail()  : "");
+                    m.put("name",          u.getName()   != null ? u.getName()   : "");
+                    m.put("roles",         u.getRoles());
+                    m.put("provider",      u.getProvider());
+                    m.put("accountStatus", u.getAccountStatus().name());
+                    return m;
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(users);
     }
 
-    // ── Update roles ─────────────────────────────────────────────────────────
+    // ── Update roles ──────────────────────────────────────────────────────────
 
+    /**
+     * PUT /api/admin/users/{id}/roles
+     * Body: { "roles": ["ROLE_ANALYST", "ROLE_USER"] }
+     */
     @PutMapping("/{id}/roles")
     public ResponseEntity<Map<String, Object>> updateRoles(
             @PathVariable Long id,
@@ -61,54 +78,79 @@ public class AdminUserController {
                     .map(r -> Role.valueOf(r).value())
                     .collect(Collectors.toList());
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "message", "Invalid role. Allowed: ROLE_ADMIN, ROLE_ANALYST, ROLE_USER"
-            ));
+            return ResponseEntity.badRequest().body(
+                    Map.of("message", "Invalid role. Allowed: ROLE_ADMIN, ROLE_ANALYST, ROLE_USER"));
         }
 
         user.setRoles(validRoles);
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of(
-                "id",    user.getId(),
-                "roles", user.getRoles()
-        ));
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id",    user.getId());
+        resp.put("roles", user.getRoles());
+        return ResponseEntity.ok(resp);
     }
 
-    // ── APPROVE ANALYST ACCOUNT ─────────────────────────────────────────────
+    // ── Suspend / unsuspend ───────────────────────────────────────────────────
 
-    @PutMapping("/{id}/approve")
-    public ResponseEntity<Map<String, Object>> approveAnalyst(@PathVariable Long id) {
-
+    /**
+     * POST /api/admin/users/{id}/suspend
+     * Blocks the user from logging in without deleting the account.
+     */
+    @PostMapping("/{id}/suspend")
+    public ResponseEntity<Map<String, Object>> suspendUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found: " + id));
 
-        if (!user.getRoles().contains(Role.ROLE_ANALYST.value())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "User is not an analyst"));
-        }
-
-        user.setApproved(true);
+        user.setAccountStatus(AccountStatus.SUSPENDED);
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of(
-                "message", "Analyst approved successfully",
-                "id", user.getId(),
-                "approved", user.isApproved()
-        ));
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("message",       "User suspended");
+        resp.put("id",            user.getId());
+        resp.put("accountStatus", user.getAccountStatus().name());
+        return ResponseEntity.ok(resp);
     }
 
-    // ── Promote shortcut (also auto-approve) ─────────────────────────────────
-
-    @PostMapping("/{id}/promote-analyst")
-    public ResponseEntity<Map<String, Object>> promoteToAnalyst(@PathVariable Long id) {
-
+    /**
+     * POST /api/admin/users/{id}/unsuspend
+     * Restores a suspended user to ACTIVE.
+     */
+    @PostMapping("/{id}/unsuspend")
+    public ResponseEntity<Map<String, Object>> unsuspendUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found: " + id));
 
-        List<String> roles = new java.util.ArrayList<>(
-                user.getRoles() == null ? List.of() : user.getRoles()
-        );
+        if (user.getAccountStatus() != AccountStatus.SUSPENDED) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "User is not suspended"));
+        }
+
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        userRepository.save(user);
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("message",       "User unsuspended");
+        resp.put("id",            user.getId());
+        resp.put("accountStatus", user.getAccountStatus().name());
+        return ResponseEntity.ok(resp);
+    }
+
+    // ── Promote to analyst ────────────────────────────────────────────────────
+
+    /**
+     * POST /api/admin/users/{id}/promote-analyst
+     * Manually adds ROLE_ANALYST to an existing user.
+     * Note: Normal analysts go through the document verification flow.
+     * This endpoint is for edge cases (e.g. migrating existing users).
+     */
+    @PostMapping("/{id}/promote-analyst")
+    public ResponseEntity<Map<String, Object>> promoteToAnalyst(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+
+        List<String> roles = new ArrayList<>(
+                user.getRoles() == null ? List.of() : user.getRoles());
 
         if (!roles.contains(Role.ROLE_ANALYST.value())) {
             roles.add(Role.ROLE_ANALYST.value());
@@ -118,13 +160,16 @@ public class AdminUserController {
         }
 
         user.setRoles(roles);
-        user.setApproved(true);   // ✅ important
+        // Also ensure they're ACTIVE so they can log in
+        if (user.getAccountStatus() != AccountStatus.ACTIVE) {
+            user.setAccountStatus(AccountStatus.ACTIVE);
+        }
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "roles", user.getRoles(),
-                "approved", user.isApproved()
-        ));
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id",            user.getId());
+        resp.put("roles",         user.getRoles());
+        resp.put("accountStatus", user.getAccountStatus().name());
+        return ResponseEntity.ok(resp);
     }
 }

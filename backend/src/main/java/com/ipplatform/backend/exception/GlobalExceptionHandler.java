@@ -34,7 +34,6 @@ public ResponseEntity<Map<String, Object>> handleSecurityExceptions(Exception ex
 
     // ── Helper ────────────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("null")
     private ResponseEntity<Map<String, Object>> buildError(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status",    status.value(),

@@ -5,27 +5,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-/**
- * Sends transactional emails.
- *
- * Required application.yml / .env config:
- *
- *   spring.mail.host=smtp.gmail.com
- *   spring.mail.port=587
- *   spring.mail.username=${MAIL_USERNAME}
- *   spring.mail.password=${MAIL_PASSWORD}        ← Gmail App Password (not your login password)
- *   spring.mail.properties.mail.smtp.auth=true
- *   spring.mail.properties.mail.smtp.starttls.enable=true
- *
- *   app.frontend-url=http://localhost:3000        ← used to build reset links
- *   app.mail-from=noreply@ipplatform.com
- *
- * pom.xml dependency:
- *   <dependency>
- *     <groupId>org.springframework.boot</groupId>
- *     <artifactId>spring-boot-starter-mail</artifactId>
- *   </dependency>
- */
 @Service
 public class EmailService {
 
@@ -41,51 +20,70 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    // ── Password Reset ────────────────────────────────────────────────────────
-
-    /**
-     * Sends a password reset link.
-     * The link points to your FRONTEND, which then calls POST /auth/reset-password.
-     *
-     * Link format: {frontendUrl}/reset-password?token={token}
-     */
-    public void sendPasswordResetEmail(String toEmail, String resetToken) {
-        String resetLink = frontendUrl + "/reset-password?token=" + resetToken;
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
-        message.setTo(toEmail);
-        message.setSubject("Reset your IP Platform password");
-        message.setText(
-                "Hi,\n\n" +
-                "You requested a password reset for your IP Intelligence Platform account.\n\n" +
-                "Click the link below to reset your password (valid for 1 hour):\n" +
-                resetLink + "\n\n" +
-                "If you didn't request this, you can safely ignore this email.\n\n" +
-                "— IP Intelligence Platform Team"
-        );
-
-        mailSender.send(message);
+    public void sendWelcomeEmail(String toEmail, String name) {
+        send(toEmail,
+             "Welcome to IP Intelligence Platform",
+             "Hi " + name + ",\n\n" +
+             "Your account has been created successfully.\n" +
+             "Log in here: " + frontendUrl + "/login\n\n" +
+             "— IP Intelligence Platform Team");
     }
 
-    // ── Welcome Email ─────────────────────────────────────────────────────────
+    public void sendAnalystPendingEmail(String toEmail, String name) {
+        send(toEmail,
+             "Complete Your Analyst Registration — Upload Documents",
+             "Hi " + name + ",\n\n" +
+             "Your analyst account has been created. To complete your registration, " +
+             "please upload your identity documents (Aadhaar Card, PAN Card, Passport, etc.) at:\n" +
+             frontendUrl + "/submit-documents\n\n" +
+             "Your account will be activated once an admin verifies your documents.\n\n" +
+             "— IP Intelligence Platform Team");
+    }
 
-    /**
-     * Sent after successful registration.
-     */
-    public void sendWelcomeEmail(String toEmail, String name) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
-        message.setTo(toEmail);
-        message.setSubject("Welcome to IP Intelligence Platform");
-        message.setText(
-                "Hi " + name + ",\n\n" +
-                "Welcome to IP Intelligence Platform! Your account has been created successfully.\n\n" +
-                "You can now log in and start exploring global IP data.\n\n" +
-                frontendUrl + "/login\n\n" +
-                "— IP Intelligence Platform Team"
-        );
+    public void sendAnalystApplicationSubmittedEmail(String toEmail, String name) {
+        send(toEmail,
+             "Documents Received — Under Admin Review",
+             "Hi " + name + ",\n\n" +
+             "We have received your identity documents. " +
+             "Our admin team will review them and you will be notified by email once a " +
+             "decision has been made.\n\n" +
+             "— IP Intelligence Platform Team");
+    }
 
-        mailSender.send(message);
+    public void sendAnalystApprovedEmail(String toEmail, String name) {
+        send(toEmail,
+             "Analyst Account Approved — You Can Now Log In",
+             "Hi " + name + ",\n\n" +
+             "Your identity has been verified and your analyst account is now active.\n\n" +
+             "Log in here: " + frontendUrl + "/login\n\n" +
+             "— IP Intelligence Platform Team");
+    }
+
+    public void sendAnalystRejectedEmail(String toEmail, String name, String reason) {
+        send(toEmail,
+             "Update on Your Analyst Application",
+             "Hi " + name + ",\n\n" +
+             "We were unable to approve your analyst application.\n\n" +
+             "Reason: " + reason + "\n\n" +
+             "Please contact support if you have questions.\n\n" +
+             "— IP Intelligence Platform Team");
+    }
+
+    public void sendPasswordResetEmail(String toEmail, String resetToken) {
+        String link = frontendUrl + "/reset-password?token=" + resetToken;
+        send(toEmail,
+             "Reset Your Password",
+             "Hi,\n\nClick the link to reset your password (valid 1 hour):\n" +
+             link + "\n\nIgnore this if you didn't request it.\n\n" +
+             "— IP Intelligence Platform Team");
+    }
+
+    private void send(String to, String subject, String text) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(mailFrom);
+        msg.setTo(to);
+        msg.setSubject(subject);
+        msg.setText(text);
+        mailSender.send(msg);
     }
 }
