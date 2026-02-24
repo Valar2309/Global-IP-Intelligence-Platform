@@ -1,6 +1,8 @@
 package com.ipplatform.backend.security;
 
+import com.ipplatform.backend.model.RefreshToken;
 import com.ipplatform.backend.model.User;
+import com.ipplatform.backend.repository.RefreshTokenRepository;
 import com.ipplatform.backend.repository.UserRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,13 +17,16 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Triggered after Google successfully authenticates the user.
  *
  * Flow:
  *   Google callback → Spring processes OAuth → THIS HANDLER runs
- *   → generates your JWT access + refresh tokens
+ *   → generates JWT access + refresh tokens
+ *   → persists refresh token in DB
  *   → redirects to frontend with tokens in URL params
  *   → frontend stores tokens and treats user as logged in
  */
@@ -31,16 +36,20 @@ public class OAuth2AuthenticationSuccessHandler
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    // Where to redirect the frontend after successful OAuth login
-    // Set this in application.properties / .env
     @Value("${oauth2.redirect-uri:http://localhost:3000/oauth2/callback}")
     private String redirectUri;
 
+    @Value("${auth.refresh-token-expiry-days:7}")
+    private int refreshDays;
+
     public OAuth2AuthenticationSuccessHandler(JwtUtil jwtUtil,
-                                              UserRepository userRepository) {
+                                              UserRepository userRepository,
+                                              RefreshTokenRepository refreshTokenRepository) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Override
@@ -49,23 +58,24 @@ public class OAuth2AuthenticationSuccessHandler
                                         Authentication authentication) throws IOException {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-
-        // Get email from Google's profile (we use email as username for OAuth users)
         String email = oAuth2User.getAttribute("email");
 
-        // Load full user from DB to get roles
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("OAuth user not found after authentication"));
 
-        // Generate YOUR JWT tokens — same ones used by normal login
-        String accessToken  = jwtUtil.generateAccessToken(user.getUsername(), user.getRoles());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+        // Generate JWT tokens using the correct signature
+        String accessToken  = jwtUtil.generateAccessToken(user.getUsername(), "ROLE_USER", "USER");
+        String rawRefresh   = jwtUtil.generateRefreshToken(user.getUsername());
 
-        // Redirect to frontend with tokens as URL params
-        // Frontend reads these, stores them, and proceeds like a normal login
+        // Persist refresh token to DB
+        Instant expiresAt = Instant.now().plus(refreshDays, ChronoUnit.DAYS);
+        RefreshToken rt = new RefreshToken(rawRefresh, "USER", user.getId(),
+                user.getUsername(), expiresAt, false);
+        refreshTokenRepository.save(rt);
+
         String targetUrl = redirectUri
-                + "?accessToken="  + URLEncoder.encode(accessToken,  StandardCharsets.UTF_8)
-                + "&refreshToken=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8);
+                + "?accessToken="  + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
+                + "&refreshToken=" + URLEncoder.encode(rawRefresh,  StandardCharsets.UTF_8);
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }

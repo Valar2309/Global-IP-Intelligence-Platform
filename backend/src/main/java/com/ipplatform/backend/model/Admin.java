@@ -2,17 +2,18 @@ package com.ipplatform.backend.model;
 
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.List;
 
 /**
- * Represents a regular USER account.
- * Completely separate from Analyst — different table, different flow.
+ * Represents an ADMIN account — separate table, seeded via DataInitializer.
  *
- * Table: users
+ * Admin does NOT register — default credentials are set in application.properties
+ * and seeded on first startup.
+ *
+ * Table: admins
  */
 @Entity
-@Table(name = "users")
-public class User {
+@Table(name = "admins")
+public class Admin {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,25 +31,21 @@ public class User {
     @Column
     private String name;
 
-    @Column(nullable = false)
-    private String provider = "LOCAL";
-
-    @Column(name = "provider_id")
-    private String providerId;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role")
-    private List<String> roles;
-
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'ACTIVE'")
-    private String status = "ACTIVE"; // ACTIVE | SUSPENDED
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
     // ── Constructors ──────────────────────────────────────────────────────────
-    public User() {}
+    public Admin() {}
+
+    public Admin(String username, String password, String email, String name) {
+        this.username = username;
+        this.password = password;
+        this.email    = email;
+        this.name     = name;
+    }
 
     // ── Getters & Setters ─────────────────────────────────────────────────────
     public Long getId() { return id; }
@@ -65,17 +62,8 @@ public class User {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public String getProvider() { return provider; }
-    public void setProvider(String provider) { this.provider = provider; }
-
-    public String getProviderId() { return providerId; }
-    public void setProviderId(String providerId) { this.providerId = providerId; }
-
-    public List<String> getRoles() { return roles; }
-    public void setRoles(List<String> roles) { this.roles = roles; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 
     public Instant getCreatedAt() { return createdAt; }
 }
