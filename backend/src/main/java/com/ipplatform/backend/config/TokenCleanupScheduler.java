@@ -31,7 +31,7 @@ public class TokenCleanupScheduler {
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanupExpiredTokens() {
         Instant now = Instant.now();
-        refreshTokenRepository.deleteExpiredAndRevoked(now);
+        refreshTokenRepository.deleteExpiredAndRevoked();
         resetTokenRepository.deleteExpiredAndUsed(now);
         System.out.println("🧹 Token cleanup completed at " + now);
     }
