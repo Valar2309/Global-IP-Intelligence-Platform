@@ -1,249 +1,198 @@
-import { useState, useMemo } from "react";
-import {
-  getUser,
-  getAllUsers,
-  saveAllUsers,
-  getRequests,
-  removeRequest,
-  logout,
-} from "../utils/auth";
-
-import { toast } from "react-toastify";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export default function AdminDashboard() {
+
   const navigate = useNavigate();
-  const user = getUser();
+  const token = localStorage.getItem("accessToken");
+  const role = localStorage.getItem("role");
 
-  // ===============================
-  // 🔹 HOOKS (Always at the top)
-  // ===============================
+  const [users, setUsers] = useState([]);
+  const [pending, setPending] = useState([]);
 
-  const [users, setUsers] = useState(getAllUsers());
-  const [requests, setRequests] = useState(getRequests());
-
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("ALL");
-  const [requestSearch, setRequestSearch] = useState("");
-
-  // ===============================
-  // 📊 STATISTICS
-  // ===============================
-
-  const stats = useMemo(() => {
-    return {
-      total: users.length,
-      admins: users.filter((u) => u.role === "ADMIN").length,
-      analysts: users.filter((u) => u.role === "ANALYST").length,
-      normalUsers: users.filter((u) => u.role === "USER").length,
-    };
-  }, [users]);
-
-  // ===============================
-  // 🔎 FILTER LOGIC
-  // ===============================
-
-  const filteredUsers = useMemo(() => {
-    return users
-      .filter((u) => u.username.toLowerCase().includes(search.toLowerCase()))
-      .filter((u) => (roleFilter === "ALL" ? true : u.role === roleFilter));
-  }, [users, search, roleFilter]);
-
-  const filteredRequests = useMemo(() => {
-    return requests.filter((r) =>
-      r.username.toLowerCase().includes(requestSearch.toLowerCase())
-    );
-  }, [requests, requestSearch]);
-
-  // ===============================
-  // 🔧 ACTIONS
-  // ===============================
-
-  const updateUsers = (updatedUsers) => {
-    saveAllUsers(updatedUsers);
-    setUsers(updatedUsers);
-  };
-
-  const approveRequest = (username) => {
-    const updated = users.map((u) =>
-      u.username === username ? { ...u, role: "ANALYST" } : u
-    );
-
-    updateUsers(updated);
-    removeRequest(username);
-    setRequests(requests.filter((r) => r.username !== username));
-
-    toast.success("User promoted to Analyst");
-  };
-
-  const revokeToUser = (username) => {
-    const updated = users.map((u) =>
-      u.username === username ? { ...u, role: "USER" } : u
-    );
-
-    updateUsers(updated);
-    toast.info("Role changed to USER");
-  };
-
-  const deleteUser = (username) => {
-    if (username === "admin") {
-      toast.error("Cannot delete main admin");
-      return;
+  useEffect(() => {
+    if (!token || role !== "ADMIN") {
+      navigate("/login");
     }
+  }, []);
 
-    const updated = users.filter((u) => u.username !== username);
-    updateUsers(updated);
+  useEffect(() => {
+    fetchUsers();
+    fetchPending();
+  }, []);
 
-    toast.success("User deleted");
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8081/api/admin/users",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setUsers(res.data);
+    } catch {
+      toast.error("Failed to load users");
+    }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const fetchPending = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8081/api/admin/analysts/pending",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setPending(res.data);
+    } catch {
+      toast.error("Failed to load requests");
+    }
   };
 
-  // ===============================
-  // 🚫 ACCESS CONTROL (AFTER HOOKS)
-  // ===============================
+  const approveAnalyst = async (id) => {
+    try {
+      await axios.post(
+        `http://localhost:8081/api/admin/analysts/${id}/approve`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-  if (!user || user.role !== "ADMIN") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <h2 className="text-2xl font-semibold text-red-500">Access Denied</h2>
-      </div>
-    );
-  }
-
-  // ===============================
-  // 🖥️ UI
-  // ===============================
+      toast.success("Analyst Approved 🚀");
+      fetchPending();
+      fetchUsers();
+    } catch {
+      toast.error("Approval failed");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 md:p-10">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-10">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
-        >
-          Logout
-        </button>
-      </div>
+    <div className="wrapper">
+      <div className="dashboard-card">
 
-      {/* STATISTICS */}
-      <div className="grid md:grid-cols-4 gap-6 mb-12">
-        <StatCard label="Total Users" value={stats.total} />
-        <StatCard label="Admins" value={stats.admins} />
-        <StatCard label="Analysts" value={stats.analysts} />
-        <StatCard label="Users" value={stats.normalUsers} />
-      </div>
+        <div className="header">
+          <h1>IP Intelligence</h1>
+          <p>Admin Control Panel</p>
+        </div>
 
-      {/* REQUEST SECTION */}
-      <Section title="Analyst Requests">
-        <input
-          type="text"
-          placeholder="Search request..."
-          value={requestSearch}
-          onChange={(e) => setRequestSearch(e.target.value)}
-          className="p-2 border rounded-lg mb-6 w-full md:w-1/2"
-        />
+        <h2>Pending Analyst Requests</h2>
 
-        {filteredRequests.length === 0 && (
-          <p className="text-gray-500">No pending requests</p>
+        {pending.length === 0 && (
+          <p className="empty">No pending requests</p>
         )}
 
-        {filteredRequests.map((r, i) => (
-          <div
-            key={i}
-            className="flex justify-between bg-white p-4 mb-3 rounded shadow"
-          >
-            <span>{r.username}</span>
+        {pending.map((a) => (
+          <div key={a.id} className="card">
+            <div>
+              <strong>{a.username}</strong>
+              <p>{a.email}</p>
+            </div>
             <button
-              onClick={() => approveRequest(r.username)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+              className="primary-btn"
+              onClick={() => approveAnalyst(a.id)}
             >
               Approve
             </button>
           </div>
         ))}
-      </Section>
 
-      {/* USERS SECTION */}
-      <Section title="All Users">
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Search user..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="p-2 border rounded-lg"
-          />
+        <h2>All Users</h2>
 
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="p-2 border rounded-lg"
-          >
-            <option value="ALL">All Roles</option>
-            <option value="ADMIN">Admin</option>
-            <option value="ANALYST">Analyst</option>
-            <option value="USER">User</option>
-          </select>
-        </div>
-
-        {filteredUsers.map((u, i) => (
-          <div
-            key={i}
-            className="flex flex-col md:flex-row justify-between bg-white p-4 mb-4 rounded-xl shadow"
-          >
+        {users.map((u) => (
+          <div key={u.id} className="card">
             <div>
-              <p className="font-semibold">{u.username}</p>
-              <p className="text-sm text-gray-500">Role: {u.role}</p>
+              <strong>{u.username}</strong>
+              <p>{u.roles?.join(", ")}</p>
             </div>
-
-            {u.username !== "admin" && (
-              <div className="flex gap-3 mt-3 md:mt-0 flex-wrap">
-                <button
-                  onClick={() => revokeToUser(u.username)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-                >
-                  Make User
-                </button>
-
-                <button
-                  onClick={() => deleteUser(u.username)}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
           </div>
         ))}
 
-        {filteredUsers.length === 0 && (
-          <p className="text-gray-500">No users found</p>
-        )}
-      </Section>
+      </div>
+
+      <style>{`
+        .wrapper {
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: linear-gradient(135deg, #0f172a, #1e293b);
+          padding: 40px;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .dashboard-card {
+          width: 100%;
+          max-width: 900px;
+          background: rgba(255,255,255,0.05);
+          backdrop-filter: blur(20px);
+          padding: 40px;
+          border-radius: 20px;
+          box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: white;
+        }
+
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+
+        .header h1 {
+          font-size: 20px;
+          letter-spacing: 2px;
+          color: #38bdf8;
+        }
+
+        .header p {
+          font-size: 12px;
+          opacity: 0.7;
+        }
+
+        h2 {
+          margin-top: 30px;
+          margin-bottom: 15px;
+        }
+
+        .card {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255,255,255,0.08);
+          padding: 15px 20px;
+          border-radius: 12px;
+          margin-bottom: 12px;
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: all 0.3s ease;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          background: rgba(255,255,255,0.12);
+        }
+
+        .primary-btn {
+          padding: 8px 18px;
+          border-radius: 10px;
+          border: none;
+          background: linear-gradient(90deg, #2563eb, #38bdf8);
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: 0.3s;
+        }
+
+        .primary-btn:hover {
+          transform: scale(1.05);
+          box-shadow: 0 10px 25px rgba(37,99,235,0.4);
+        }
+
+        .empty {
+          opacity: 0.6;
+        }
+      `}</style>
     </div>
   );
 }
-
-// ===============================
-// 🔹 Reusable Components
-// ===============================
-
-const Section = ({ title, children }) => (
-  <div className="bg-white p-6 rounded-2xl shadow mb-12">
-    <h2 className="text-xl font-semibold mb-6">{title}</h2>
-    {children}
-  </div>
-);
-
-const StatCard = ({ label, value }) => (
-  <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow text-center">
-    <p className="text-sm opacity-80">{label}</p>
-    <p className="text-2xl font-bold mt-2">{value}</p>
-  </div>
-);

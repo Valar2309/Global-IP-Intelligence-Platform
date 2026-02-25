@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
-import { getAllUsers, saveUser, getRequests } from "../utils/auth";
+import axios from "axios";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,61 +9,56 @@ export default function Login() {
   const [form, setForm] = useState({
     username: "",
     password: "",
+    role: "USER",
   });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!form.username || !form.password) {
       toast.error("Please enter username and password");
       return;
     }
 
-    const users = getAllUsers();
+    try {
+      let endpoint = "";
 
-    const user = users.find(
-      (u) =>
-        u.username === form.username &&
-        u.password === form.password
-    );
-
-    if (!user) {
-
-      toast.error("Invalid username or password");
-      return;
-    }
-
-    if (user.role === "USER") {
-      const requests = getRequests();
-      const pendingRequest = requests.find(
-        (r) =>
-          r.username === user.username &&
-          r.status === "PENDING"
-      );
-
-      if (pendingRequest) {
-        toast.warning(
-          "Your Analyst request is pending admin approval."
-        );
-        return;
-      }
-    }
-
-    saveUser(user);
-
-    toast.success("Login successful");
-
-    setTimeout(() => {
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else if (user.role === "ANALYST") {
-        navigate("/analyst");
+      if (form.role === "ADMIN") {
+        endpoint = "http://localhost:8081/api/admin/login";
+      } else if (form.role === "ANALYST") {
+        endpoint = "http://localhost:8081/api/analyst/login";
       } else {
-        navigate("/user");
+        endpoint = "http://localhost:8081/api/user/login";
       }
-    }, 1000);
+
+      const res = await axios.post(endpoint, {
+        username: form.username,
+        password: form.password,
+        rememberMe: false,
+      });
+
+      const data = res.data;
+
+      const cleanRole = data.role
+        ? data.role.replace("ROLE_", "")
+        : data.userType;
+
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("role", cleanRole);
+
+      toast.success("Login successful 🚀");
+
+      setTimeout(() => {
+        if (cleanRole === "ADMIN") navigate("/admin");
+        else if (cleanRole === "ANALYST") navigate("/analyst");
+        else navigate("/user");
+      }, 800);
+
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Invalid credentials");
+    }
   };
 
   return (
-
     <div className="wrapper">
       <div className="login-card">
 
@@ -90,12 +84,27 @@ export default function Login() {
         <input
           type="password"
           placeholder="Password"
-
           value={form.password}
           onChange={(e) =>
             setForm({ ...form, password: e.target.value })
           }
         />
+
+        {/* 🔥 FIXED DROPDOWN */}
+        <div className="select-wrapper">
+          <select
+            value={form.role}
+            onChange={(e) =>
+              setForm({ ...form, role: e.target.value })
+            }
+            className="role-select"
+          >
+            <option value="USER">USER</option>
+            <option value="ANALYST">ANALYST</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+          <span className="arrow">▼</span>
+        </div>
 
         <button onClick={handleLogin} className="primary-btn">
           Sign In
@@ -182,6 +191,37 @@ export default function Login() {
           border-color: #38bdf8;
           outline: none;
           box-shadow: 0 0 0 3px rgba(56,189,248,0.2);
+        }
+
+        /* 🔥 Dropdown Fix */
+        .select-wrapper {
+          position: relative;
+        }
+
+        .role-select {
+          width: 100%;
+          padding: 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.08);
+          color: white;
+          font-size: 14px;
+          appearance: none;
+        }
+
+        .role-select option {
+          background: #1e293b;
+          color: white;
+        }
+
+        .arrow {
+          position: absolute;
+          right: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: white;
+          font-size: 12px;
         }
 
         .primary-btn {
