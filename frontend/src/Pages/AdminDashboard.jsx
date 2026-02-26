@@ -11,18 +11,20 @@ export default function AdminDashboard() {
 
   const [users, setUsers] = useState([]);
   const [pending, setPending] = useState([]);
+  const [loadingDoc, setLoadingDoc] = useState(null);
 
+  // ================= AUTH CHECK =================
   useEffect(() => {
     if (!token || role !== "ADMIN") {
       navigate("/login");
+      return;
     }
-  }, []);
 
-  useEffect(() => {
     fetchUsers();
     fetchPending();
   }, []);
 
+  // ================= FETCH USERS =================
   const fetchUsers = async () => {
     try {
       const res = await axios.get(
@@ -37,6 +39,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // ================= FETCH PENDING =================
   const fetchPending = async () => {
     try {
       const res = await axios.get(
@@ -47,10 +50,11 @@ export default function AdminDashboard() {
       );
       setPending(res.data);
     } catch {
-      toast.error("Failed to load requests");
+      toast.error("Failed to load pending requests");
     }
   };
 
+  // ================= APPROVE =================
   const approveAnalyst = async (id) => {
     try {
       await axios.post(
@@ -66,6 +70,55 @@ export default function AdminDashboard() {
       fetchUsers();
     } catch {
       toast.error("Approval failed");
+    }
+  };
+
+  // ================= REJECT =================
+  const rejectAnalyst = async (id) => {
+    try {
+      await axios.post(
+        `http://localhost:8081/api/admin/analysts/${id}/reject`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      toast.success("Analyst Rejected ❌");
+      fetchPending();
+      fetchUsers();
+    } catch {
+      toast.error("Reject failed");
+    }
+  };
+
+  // ================= VIEW DOCUMENT (FINAL FIX) =================
+  const viewDocument = async (id) => {
+    try {
+      setLoadingDoc(id);
+
+      const res = await axios.get(
+        `http://localhost:8081/api/admin/analysts/${id}/document`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
+        }
+      );
+
+      const contentType = res.headers["content-type"];
+
+      const blob = new Blob([res.data], { type: contentType });
+
+      const url = window.URL.createObjectURL(blob);
+
+      window.open(url, "_blank");
+
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      toast.error("Failed to load document");
+    } finally {
+      setLoadingDoc(null);
     }
   };
 
@@ -90,12 +143,32 @@ export default function AdminDashboard() {
               <strong>{a.username}</strong>
               <p>{a.email}</p>
             </div>
-            <button
-              className="primary-btn"
-              onClick={() => approveAnalyst(a.id)}
-            >
-              Approve
-            </button>
+
+            <div className="btn-group">
+
+              <button
+                className="doc-btn"
+                onClick={() => viewDocument(a.id)}
+                disabled={loadingDoc === a.id}
+              >
+                {loadingDoc === a.id ? "Loading..." : "View Doc"}
+              </button>
+
+              <button
+                className="primary-btn"
+                onClick={() => approveAnalyst(a.id)}
+              >
+                Approve
+              </button>
+
+              <button
+                className="danger-btn"
+                onClick={() => rejectAnalyst(a.id)}
+              >
+                Reject
+              </button>
+
+            </div>
           </div>
         ))}
 
@@ -140,17 +213,6 @@ export default function AdminDashboard() {
           margin-bottom: 30px;
         }
 
-        .header h1 {
-          font-size: 20px;
-          letter-spacing: 2px;
-          color: #38bdf8;
-        }
-
-        .header p {
-          font-size: 12px;
-          opacity: 0.7;
-        }
-
         h2 {
           margin-top: 30px;
           margin-bottom: 15px;
@@ -165,28 +227,38 @@ export default function AdminDashboard() {
           border-radius: 12px;
           margin-bottom: 12px;
           border: 1px solid rgba(255,255,255,0.1);
-          transition: all 0.3s ease;
         }
 
-        .card:hover {
-          transform: translateY(-2px);
-          background: rgba(255,255,255,0.12);
+        .btn-group {
+          display: flex;
+          gap: 10px;
         }
 
         .primary-btn {
-          padding: 8px 18px;
-          border-radius: 10px;
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: none;
+          background: linear-gradient(90deg, #16a34a, #22c55e);
+          color: white;
+          cursor: pointer;
+        }
+
+        .danger-btn {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: none;
+          background: linear-gradient(90deg, #dc2626, #ef4444);
+          color: white;
+          cursor: pointer;
+        }
+
+        .doc-btn {
+          padding: 8px 14px;
+          border-radius: 8px;
           border: none;
           background: linear-gradient(90deg, #2563eb, #38bdf8);
           color: white;
-          font-weight: 600;
           cursor: pointer;
-          transition: 0.3s;
-        }
-
-        .primary-btn:hover {
-          transform: scale(1.05);
-          box-shadow: 0 10px 25px rgba(37,99,235,0.4);
         }
 
         .empty {
