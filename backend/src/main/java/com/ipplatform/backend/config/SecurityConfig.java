@@ -76,13 +76,14 @@ public class SecurityConfig {
 
                 // 🔥 Search API PUBLIC (for development)
                 .requestMatchers(HttpMethod.GET, "/api/search/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/ip-assets/**").permitAll() 
 
                 // ── ROLE_USER ────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/api/user/logout").hasRole("USER")
                 .requestMatchers(HttpMethod.POST, "/api/user/change-password").hasRole("USER")
                 .requestMatchers(HttpMethod.GET,  "/api/user/me").hasRole("USER")
-                .requestMatchers(HttpMethod.GET,  "/api/ip-assets/**")
-                    .hasAnyRole("USER", "ANALYST", "ADMIN")
+                .requestMatchers(HttpMethod.GET,  "/api/ip-assets/**").permitAll()
+                    
 
                 // ── ROLE_ANALYST ─────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/api/analyst/logout").hasRole("ANALYST")

@@ -49,6 +49,7 @@ public class AdminController {
      *   "role":         "ROLE_ADMIN"
      * }
      */
+    
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> req) {
         TokenPair tokens = adminService.login(req.get("username"), req.get("password"));
@@ -151,7 +152,7 @@ public class AdminController {
         String note = body != null ? body.getOrDefault("adminNote", "") : "";
         return ResponseEntity.ok(adminService.approve(id, note, principal.getName()));
     }
-
+    
     /**
      * POST /api/admin/analysts/{id}/reject
      * Content-Type: application/json
