@@ -13,25 +13,22 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState([]);
   const [loadingDoc, setLoadingDoc] = useState(null);
 
-  // ================= AUTH CHECK =================
+  /* ================= AUTH CHECK ================= */
   useEffect(() => {
     if (!token || role !== "ADMIN") {
       navigate("/login");
       return;
     }
-
     fetchUsers();
     fetchPending();
   }, []);
 
-  // ================= FETCH USERS =================
+  /* ================= FETCH USERS ================= */
   const fetchUsers = async () => {
     try {
       const res = await axios.get(
         "http://localhost:8081/api/admin/users",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setUsers(res.data);
     } catch {
@@ -39,14 +36,12 @@ export default function AdminDashboard() {
     }
   };
 
-  // ================= FETCH PENDING =================
+  /* ================= FETCH PENDING ================= */
   const fetchPending = async () => {
     try {
       const res = await axios.get(
         "http://localhost:8081/api/admin/analysts/pending",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setPending(res.data);
     } catch {
@@ -54,17 +49,14 @@ export default function AdminDashboard() {
     }
   };
 
-  // ================= APPROVE =================
+  /* ================= APPROVE ================= */
   const approveAnalyst = async (id) => {
     try {
       await axios.post(
         `http://localhost:8081/api/admin/analysts/${id}/approve`,
         {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       toast.success("Analyst Approved 🚀");
       fetchPending();
       fetchUsers();
@@ -73,17 +65,14 @@ export default function AdminDashboard() {
     }
   };
 
-  // ================= REJECT =================
+  /* ================= REJECT ================= */
   const rejectAnalyst = async (id) => {
     try {
       await axios.post(
         `http://localhost:8081/api/admin/analysts/${id}/reject`,
         {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       toast.success("Analyst Rejected ❌");
       fetchPending();
       fetchUsers();
@@ -92,7 +81,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ================= VIEW DOCUMENT (FINAL FIX) =================
+  /* ================= VIEW DOCUMENT (UNCHANGED LOGIC) ================= */
   const viewDocument = async (id) => {
     try {
       setLoadingDoc(id);
@@ -115,156 +104,136 @@ export default function AdminDashboard() {
 
       window.URL.revokeObjectURL(url);
 
-    } catch (err) {
+    } catch {
       toast.error("Failed to load document");
     } finally {
       setLoadingDoc(null);
     }
   };
 
-  return (
-    <div className="wrapper">
-      <div className="dashboard-card">
+  /* ================= LOGOUT ================= */
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
-        <div className="header">
-          <h1>IP Intelligence</h1>
-          <p>Admin Control Panel</p>
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+
+      {/* HEADER */}
+      <div className="bg-slate-900 border-b border-slate-700 px-10 py-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-indigo-400">
+            Admin Control Panel
+          </h1>
+          <p className="text-sm text-gray-400">
+            Manage Analyst Approvals & Users
+          </p>
         </div>
 
-        <h2>Pending Analyst Requests</h2>
-
-        {pending.length === 0 && (
-          <p className="empty">No pending requests</p>
-        )}
-
-        {pending.map((a) => (
-          <div key={a.id} className="card">
-            <div>
-              <strong>{a.username}</strong>
-              <p>{a.email}</p>
-            </div>
-
-            <div className="btn-group">
-
-              <button
-                className="doc-btn"
-                onClick={() => viewDocument(a.id)}
-                disabled={loadingDoc === a.id}
-              >
-                {loadingDoc === a.id ? "Loading..." : "View Doc"}
-              </button>
-
-              <button
-                className="primary-btn"
-                onClick={() => approveAnalyst(a.id)}
-              >
-                Approve
-              </button>
-
-              <button
-                className="danger-btn"
-                onClick={() => rejectAnalyst(a.id)}
-              >
-                Reject
-              </button>
-
-            </div>
-          </div>
-        ))}
-
-        <h2>All Users</h2>
-
-        {users.map((u) => (
-          <div key={u.id} className="card">
-            <div>
-              <strong>{u.username}</strong>
-              <p>{u.roles?.join(", ")}</p>
-            </div>
-          </div>
-        ))}
-
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+        >
+          Logout
+        </button>
       </div>
 
-      <style>{`
-        .wrapper {
-          min-height: 100vh;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          background: linear-gradient(135deg, #0f172a, #1e293b);
-          padding: 40px;
-          font-family: 'Inter', sans-serif;
-        }
+      <div className="px-10 py-10 space-y-12">
 
-        .dashboard-card {
-          width: 100%;
-          max-width: 900px;
-          background: rgba(255,255,255,0.05);
-          backdrop-filter: blur(20px);
-          padding: 40px;
-          border-radius: 20px;
-          box-shadow: 0 25px 60px rgba(0,0,0,0.4);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: white;
-        }
+        {/* ================= PENDING REQUESTS ================= */}
+        <div>
+          <h2 className="text-xl font-semibold mb-6 text-indigo-400">
+            Pending Analyst Requests
+          </h2>
 
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
+          {pending.length === 0 ? (
+            <div className="bg-slate-800 p-6 rounded-xl text-gray-400">
+              No pending requests
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pending.map((a) => (
+                <div
+                  key={a.id}
+                  className="bg-slate-800 p-6 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow hover:shadow-xl transition"
+                >
+                  <div>
+                    <p className="text-lg font-semibold">
+                      {a.username}
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      {a.email}
+                    </p>
+                  </div>
 
-        h2 {
-          margin-top: 30px;
-          margin-bottom: 15px;
-        }
+                  <div className="flex gap-3 flex-wrap">
 
-        .card {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: rgba(255,255,255,0.08);
-          padding: 15px 20px;
-          border-radius: 12px;
-          margin-bottom: 12px;
-          border: 1px solid rgba(255,255,255,0.1);
-        }
+                    <button
+                      onClick={() => viewDocument(a.id)}
+                      disabled={loadingDoc === a.id}
+                      className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm"
+                    >
+                      {loadingDoc === a.id ? "Loading..." : "View Document"}
+                    </button>
 
-        .btn-group {
-          display: flex;
-          gap: 10px;
-        }
+                    <button
+                      onClick={() => approveAnalyst(a.id)}
+                      className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm"
+                    >
+                      Approve
+                    </button>
 
-        .primary-btn {
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: none;
-          background: linear-gradient(90deg, #16a34a, #22c55e);
-          color: white;
-          cursor: pointer;
-        }
+                    <button
+                      onClick={() => rejectAnalyst(a.id)}
+                      className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+                    >
+                      Reject
+                    </button>
 
-        .danger-btn {
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: none;
-          background: linear-gradient(90deg, #dc2626, #ef4444);
-          color: white;
-          cursor: pointer;
-        }
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        .doc-btn {
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: none;
-          background: linear-gradient(90deg, #2563eb, #38bdf8);
-          color: white;
-          cursor: pointer;
-        }
+        {/* ================= USERS TABLE ================= */}
+        <div>
+          <h2 className="text-xl font-semibold mb-6 text-indigo-400">
+            All Registered Users
+          </h2>
 
-        .empty {
-          opacity: 0.6;
-        }
-      `}</style>
+          <div className="bg-slate-800 rounded-xl overflow-hidden shadow-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-700 text-gray-300">
+                <tr>
+                  <th className="text-left px-6 py-3">Username</th>
+                  <th className="text-left px-6 py-3">Roles</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {users.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-slate-700 hover:bg-slate-700 transition"
+                  >
+                    <td className="px-6 py-4">
+                      {u.username}
+                    </td>
+                    <td className="px-6 py-4 text-gray-400">
+                      {u.roles?.join(", ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
     </div>
   );
 }

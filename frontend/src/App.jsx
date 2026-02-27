@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import ThemeToggle from "./components/ThemeToggle";
 
+import DetailPage from "./Pages/DetailPage"
 import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/LandingPage";
 import Login from "./Pages/Login";
@@ -15,7 +16,7 @@ import UserDashboard from "./Pages/UserDashboard";
 import AnalystDashboard from "./Pages/AnalystDashboard";
 import AdminDashboard from "./Pages/AdminDashboard";
 
-function App() {
+export default function App() {
   useEffect(() => {
     initializeAdmin();
   }, []);
@@ -34,6 +35,7 @@ function App() {
         <Route path="/user" element={<UserDashboard />} />
         <Route path="/analyst" element={<AnalystDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/assets/:id" element={<DetailPage />} />
       </Routes>
 
       {/* Global Toast Notifications */}
@@ -48,4 +50,5 @@ function App() {
   );
 }
 
-export default App;
+
+ 
