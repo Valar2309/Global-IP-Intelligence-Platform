@@ -1,291 +1,281 @@
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import ChartsSection from "../components/analyst/ChartsSection";
-import Pagination from "../components/analyst/Pagination";
-import SortControls from "../components/analyst/SortControls";
-import ExportMenu from "../components/analyst/ExportMenu";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 
 export default function AnalystDashboard() {
+
   const navigate = useNavigate();
 
-  /* ================= STATE ================= */
-  const [user, setUser] = useState(null);
-  const [filings, setFilings] = useState([]);
-  const [activeSection, setActiveSection] = useState("overview");
-
+  const [assets, setAssets] = useState([]);
   const [keyword, setKeyword] = useState("");
   const [inventor, setInventor] = useState("");
   const [assignee, setAssignee] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
 
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState("asc");
-  const [currentPage, setCurrentPage] = useState(1);
-
   const token = localStorage.getItem("accessToken");
-  const role = localStorage.getItem("role");
 
   /* ================= FETCH DATA ================= */
   useEffect(() => {
-    if (!token || role !== "ANALYST") {
-      navigate("/login");
+    fetchAssets();
+  }, []);
+
+  const fetchAssets = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:8081/api/ip-assets",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssets(response.data || []);
+    } catch (error) {
+      console.error("Error fetching assets:", error);
+    }
+  };
+
+  /* ================= LOGOUT ================= */
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  /* ================= FILTER ================= */
+  const filteredAssets = useMemo(() => {
+    return assets.filter((a) =>
+      (keyword === "" ||
+        a.title?.toLowerCase().includes(keyword.toLowerCase())) &&
+      (inventor === "" ||
+        a.inventor?.toLowerCase().includes(inventor.toLowerCase())) &&
+      (assignee === "" ||
+        a.assignee?.toLowerCase().includes(assignee.toLowerCase())) &&
+      (jurisdiction === "" ||
+        a.jurisdiction === jurisdiction)
+    );
+  }, [assets, keyword, inventor, assignee, jurisdiction]);
+
+  /* ================= CHART DATA ================= */
+  const statusChartData = useMemo(() => {
+    const counts = {};
+    filteredAssets.forEach(a => {
+      counts[a.status] = (counts[a.status] || 0) + 1;
+    });
+    return Object.keys(counts).map(key => ({
+      name: key,
+      value: counts[key]
+    }));
+  }, [filteredAssets]);
+
+  const jurisdictionChartData = useMemo(() => {
+    const counts = {};
+    filteredAssets.forEach(a => {
+      counts[a.jurisdiction] =
+        (counts[a.jurisdiction] || 0) + 1;
+    });
+    return Object.keys(counts).map(key => ({
+      name: key,
+      value: counts[key]
+    }));
+  }, [filteredAssets]);
+
+  /* ================= DOWNLOAD REPORT ================= */
+  const downloadReport = () => {
+
+    if (filteredAssets.length === 0) {
+      alert("No data available to export");
       return;
     }
 
-    const fetchData = async () => {
-      try {
-        // 🔹 Fetch logged in analyst
-        const userRes = await axios.get(
-          "http://localhost:8081/api/analyst/me",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+    const headers = [
+      "Title",
+      "Inventor",
+      "Assignee",
+      "Status",
+      "Jurisdiction",
+      "Last Updated"
+    ];
 
-        setUser(userRes.data);
-
-        try {
-          // 🔹 Try real filings API
-          const filingsRes = await axios.get(
-            "http://localhost:8081/api/analyst/filings",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-
-          setFilings(filingsRes.data);
-        } catch (filingError) {
-          console.warn("Filings API not ready. Using dummy data.");
-
-          // 🔹 Fallback Dummy Data
-          setFilings([
-            {
-              id: 1,
-              type: "Patent",
-              status: "Active",
-              jurisdiction: "USPTO",
-              inventor: "John Smith",
-              assignee: "Tesla Inc",
-              keyword: "Electric Battery",
-              filingDate: "2024-01-15",
-            },
-            {
-              id: 2,
-              type: "Trademark",
-              status: "Pending",
-              jurisdiction: "WIPO",
-              inventor: "Maria Garcia",
-              assignee: "Nike",
-              keyword: "Smart Shoes",
-              filingDate: "2024-02-10",
-            },
-            {
-              id: 3,
-              type: "Patent",
-              status: "Expired",
-              jurisdiction: "EPO",
-              inventor: "Akira Tanaka",
-              assignee: "Sony",
-              keyword: "AI Camera",
-              filingDate: "2024-03-20",
-            },
-          ]);
-        }
-      } catch (err) {
-        console.error(err);
-        localStorage.clear();
-        navigate("/login");
-      }
-    };
-
-    fetchData();
-  }, [navigate, token, role]);
-
-  /* ================= FILTER ================= */
-  const filteredData = useMemo(() => {
-    return filings.filter(
-      (f) =>
-        (keyword === "" ||
-          f.keyword?.toLowerCase().includes(keyword.toLowerCase())) &&
-        (inventor === "" ||
-          f.inventor?.toLowerCase().includes(inventor.toLowerCase())) &&
-        (assignee === "" ||
-          f.assignee?.toLowerCase().includes(assignee.toLowerCase())) &&
-        (jurisdiction === "" || f.jurisdiction === jurisdiction)
+    const rows = filteredAssets.map(a =>
+      [
+        a.title,
+        a.inventor,
+        a.assignee,
+        a.status,
+        a.jurisdiction,
+        a.lastUpdated
+      ].join(",")
     );
-  }, [filings, keyword, inventor, assignee, jurisdiction]);
 
-  /* ================= SORT ================= */
-  const sortedData = useMemo(() => {
-    let sorted = [...filteredData];
-    if (sortField) {
-      sorted.sort((a, b) => {
-        if (a[sortField] < b[sortField])
-          return sortOrder === "asc" ? -1 : 1;
-        if (a[sortField] > b[sortField])
-          return sortOrder === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-    return sorted;
-  }, [filteredData, sortField, sortOrder]);
+    const csvContent = headers.join(",") + "\n" + rows.join("\n");
 
-  /* ================= PAGINATION ================= */
-  const itemsPerPage = 4;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
 
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedData.slice(start, start + itemsPerPage);
-  }, [sortedData, currentPage]);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "ip_analyst_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1220] via-[#111827] to-[#0f172a] text-white">
-        Loading Analyst Dashboard...
-      </div>
-    );
-  }
+  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  /* ================= UI ================= */
+  const getStatusColor = (status) => {
+    if (status === "Granted") return "bg-green-600";
+    if (status === "Pending") return "bg-yellow-500";
+    if (status === "Filed") return "bg-indigo-600";
+    return "bg-gray-500";
+  };
+
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#0b1220] via-[#111827] to-[#0f172a] text-white">
+    <div className="min-h-screen bg-slate-900 text-white px-6 md:px-12 py-10">
 
-      {/* SIDEBAR */}
-      <div className="w-64 bg-white/5 backdrop-blur-2xl border-r border-white/10 p-8 flex flex-col justify-between shadow-2xl">
-        <div>
-          <h2 className="text-2xl font-bold mb-14 bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
-            IP Intel
-          </h2>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
+        <h1 className="text-3xl font-bold text-indigo-400">
+          Analyst Dashboard
+        </h1>
 
-          <SidebarItem label="📊 Overview" active={activeSection === "overview"} onClick={() => setActiveSection("overview")} />
-          <SidebarItem label="📁 Filings" active={activeSection === "filings"} onClick={() => setActiveSection("filings")} />
-          <SidebarItem label="📄 Reports" active={activeSection === "reports"} onClick={() => setActiveSection("reports")} />
-        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={downloadReport}
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg shadow"
+          >
+            Download CSV
+          </button>
 
-        <div className="text-xs text-gray-400 border-t border-white/10 pt-4">
-          Logged in as{" "}
-          <span className="text-indigo-400 font-semibold">
-            {user.username}
-          </span>
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg shadow"
+          >
+            Logout
+          </button>
         </div>
       </div>
 
-      {/* MAIN */}
-      <div className="flex-1 p-16">
+      {/* FILTERS */}
+      <div className="bg-slate-800 p-6 rounded-xl mb-10 shadow-lg grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input
+          type="text"
+          placeholder="Search by Title"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          className="bg-slate-700 p-2 rounded-lg"
+        />
+        <input
+          type="text"
+          placeholder="Inventor"
+          value={inventor}
+          onChange={(e) => setInventor(e.target.value)}
+          className="bg-slate-700 p-2 rounded-lg"
+        />
+        <input
+          type="text"
+          placeholder="Assignee"
+          value={assignee}
+          onChange={(e) => setAssignee(e.target.value)}
+          className="bg-slate-700 p-2 rounded-lg"
+        />
+        <select
+          value={jurisdiction}
+          onChange={(e) => setJurisdiction(e.target.value)}
+          className="bg-slate-700 p-2 rounded-lg"
+        >
+          <option value="">All Jurisdictions</option>
+          <option value="IN">IN</option>
+          <option value="US">US</option>
+          <option value="EPO">EPO</option>
+          <option value="WIPO">WIPO</option>
+        </select>
+      </div>
 
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
-            Analyst Dashboard
-          </h1>
-          <p className="text-gray-400 mt-3">
-            Analyze and explore intellectual property data.
-          </p>
+      {/* CHARTS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12">
+
+        <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+          <h3 className="mb-4 text-indigo-400 font-semibold">
+            Status Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={statusChartData} dataKey="value" nameKey="name" outerRadius={100} label>
+                {statusChartData.map((entry, index) => (
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
-        {activeSection === "overview" && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl">
-            <ChartsSection data={filteredData} />
-          </div>
-        )}
+        <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+          <h3 className="mb-4 text-indigo-400 font-semibold">
+            Jurisdiction Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={jurisdictionChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="value" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-        {activeSection === "filings" && (
-          <>
-            <div className="mb-8 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl p-8 shadow-xl">
-              <h3 className="text-lg font-semibold mb-6 text-indigo-400">
-                Advanced Filters
-              </h3>
-
-              <div className="grid md:grid-cols-4 gap-6">
-                <Input placeholder="Keyword" value={keyword} onChange={setKeyword} />
-                <Input placeholder="Inventor" value={inventor} onChange={setInventor} />
-                <Input placeholder="Assignee" value={assignee} onChange={setAssignee} />
-
-                <select
-                  value={jurisdiction}
-                  onChange={(e) => setJurisdiction(e.target.value)}
-                  className="bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">All Jurisdictions</option>
-                  <option value="USPTO">USPTO</option>
-                  <option value="EPO">EPO</option>
-                  <option value="WIPO">WIPO</option>
-                  <option value="TMview">TMview</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mb-6">
-              <SortControls
-                sortField={sortField}
-                setSortField={setSortField}
-                sortOrder={sortOrder}
-                setSortOrder={setSortOrder}
-              />
-              <ExportMenu data={sortedData} />
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-              <table className="w-full text-sm">
-                <thead className="text-gray-400 border-b border-white/10">
-                  <tr>
-                    <th className="py-3 text-left">Type</th>
-                    <th>Status</th>
-                    <th>Jurisdiction</th>
-                    <th>Inventor</th>
-                    <th>Assignee</th>
-                    <th>Keyword</th>
-                    <th>Filing Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedData.map((f) => (
-                    <tr key={f.id} className="border-b border-white/5 hover:bg-white/10 transition-all duration-300">
-                      <td className="py-3">{f.type}</td>
-                      <td>{f.status}</td>
-                      <td>{f.jurisdiction}</td>
-                      <td>{f.inventor}</td>
-                      <td>{f.assignee}</td>
-                      <td>{f.keyword}</td>
-                      <td>{f.filingDate}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <Pagination
-                totalItems={sortedData.length}
-                itemsPerPage={itemsPerPage}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-              />
-            </div>
-          </>
-        )}
       </div>
+
+      {/* TABLE */}
+      <div className="bg-slate-800 p-6 rounded-xl shadow-lg overflow-x-auto">
+        <table className="w-full table-fixed text-sm">
+          <thead>
+            <tr className="border-b border-slate-600 text-gray-400">
+              <th className="text-left py-3 px-4 w-1/3">Title</th>
+              <th className="text-left py-3 px-4 w-1/6">Inventor</th>
+              <th className="text-left py-3 px-4 w-1/6">Assignee</th>
+              <th className="text-left py-3 px-4 w-1/6">Status</th>
+              <th className="text-left py-3 px-4 w-1/6">Jurisdiction</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredAssets.map((asset) => (
+              <tr
+                key={asset.id}
+                onClick={() =>
+                  navigate(`/assets/${asset.id}`, { state: { from: "ANALYST" } })
+                }
+                className="border-b border-slate-700 hover:bg-slate-700 transition cursor-pointer"
+              >
+                <td className="py-3 px-4 text-indigo-400 hover:underline">
+                  {asset.title}
+                </td>
+                <td className="py-3 px-4">{asset.inventor}</td>
+                <td className="py-3 px-4">{asset.assignee}</td>
+                <td className="py-3 px-4">
+                  <span className={`${getStatusColor(asset.status)} px-2 py-1 rounded text-xs`}>
+                    {asset.status}
+                  </span>
+                </td>
+                <td className="py-3 px-4">{asset.jurisdiction}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
     </div>
   );
 }
-
-const SidebarItem = ({ label, active, onClick }) => (
-  <div
-    onClick={onClick}
-    className={`px-5 py-3 rounded-xl mb-5 cursor-pointer transition-all duration-300 text-sm font-medium ${
-      active
-        ? "bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg"
-        : "hover:bg-white/10"
-    }`}
-  >
-    {label}
-  </div>
-);
-
-const Input = ({ placeholder, value, onChange }) => (
-  <input
-    type="text"
-    placeholder={placeholder}
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-  />
-);

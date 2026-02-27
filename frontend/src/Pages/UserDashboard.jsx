@@ -1,141 +1,229 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function UserDashboard() {
+
   const navigate = useNavigate();
+
   const [user, setUser] = useState(null);
-  const [search, setSearch] = useState("");
+  const [assets, setAssets] = useState([]);
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const [keyword, setKeyword] = useState("");
+  const [inventor, setInventor] = useState("");
+  const [assignee, setAssignee] = useState("");
+  const [jurisdiction, setJurisdiction] = useState("");
+  const [status, setStatus] = useState("");
 
   const token = localStorage.getItem("accessToken");
-  const role = localStorage.getItem("role"); // ✅ FIXED
+  const role = localStorage.getItem("role");
 
+  /* ================= AUTH CHECK ================= */
   useEffect(() => {
     if (!token || role !== "USER") {
       navigate("/login");
       return;
     }
-
-    const fetchUser = async () => {
-      try {
-        const res = await axios.get(
-          "http://localhost:8081/api/user/me",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setUser(res.data);
-      } catch (err) {
-        localStorage.clear();
-        navigate("/login");
-      }
-    };
-
     fetchUser();
-  }, [navigate, token, role]);
+  }, []);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading Dashboard...
-      </div>
+  const fetchUser = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8081/api/user/me",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setUser(res.data);
+    } catch {
+      localStorage.clear();
+      navigate("/login");
+    }
+  };
+
+  /* ================= LOGOUT ================= */
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  /* ================= SEARCH ================= */
+  const handleSearch = async () => {
+    setLoading(true);
+    setSearched(true);
+    try {
+      const res = await axios.get(
+        "http://localhost:8081/api/ip-assets",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssets(res.data || []);
+    } catch (error) {
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const clearFilters = () => {
+    setKeyword("");
+    setInventor("");
+    setAssignee("");
+    setJurisdiction("");
+    setStatus("");
+    setAssets([]);
+    setSearched(false);
+  };
+
+  /* ================= FILTER ================= */
+  const filteredAssets = useMemo(() => {
+    return assets.filter(a =>
+      (keyword === "" || a.title?.toLowerCase().includes(keyword.toLowerCase())) &&
+      (inventor === "" || a.inventor?.toLowerCase().includes(inventor.toLowerCase())) &&
+      (assignee === "" || a.assignee?.toLowerCase().includes(assignee.toLowerCase())) &&
+      (jurisdiction === "" || a.jurisdiction === jurisdiction) &&
+      (status === "" || a.status === status)
     );
-  }
+  }, [assets, keyword, inventor, assignee, jurisdiction, status]);
+
+  if (!user) return <div className="text-white p-10">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#111827] text-white px-6 md:px-12 py-16">
+    <div className="min-h-screen bg-slate-900 text-white px-4 md:px-10 py-10">
 
       {/* HEADER */}
-      <div className="mb-16 flex justify-between items-center flex-wrap gap-6">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
-            Welcome, {user.username} 👋
-          </h1>
-          <p className="text-gray-400 mt-3 max-w-xl">
-            Explore your intellectual property insights with clarity and confidence.
-          </p>
-        </div>
+      <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
+        <h1 className="text-3xl font-bold text-indigo-400">
+          Welcome, {user.username}
+        </h1>
 
         <button
-          onClick={() => navigate("/profile")}
-          className="px-8 py-3 rounded-xl font-medium text-white
-          bg-gradient-to-r from-indigo-500 to-purple-600
-          hover:scale-105 transition transform shadow-lg"
+          onClick={handleLogout}
+          className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg shadow"
         >
-          View Profile
+          Logout
         </button>
       </div>
 
-      {/* SEARCH SECTION */}
-      <Section title="Search IP">
-        <div className="relative">
+      {/* FILTER SECTION */}
+      <div className="bg-slate-800 p-6 rounded-2xl mb-8 shadow-xl">
+        <h3 className="text-lg font-semibold text-indigo-400 mb-4">
+          Search IP Assets
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+
           <input
             type="text"
-            placeholder="Search patents, trademarks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-6 py-4
-            focus:outline-none focus:ring-2 focus:ring-indigo-500
-            backdrop-blur-md transition"
+            placeholder="Keyword"
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            className="bg-slate-700 p-2 rounded"
           />
-          <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400">
-            🔍
-          </div>
+
+          <input
+            type="text"
+            placeholder="Inventor"
+            value={inventor}
+            onChange={e => setInventor(e.target.value)}
+            className="bg-slate-700 p-2 rounded"
+          />
+
+          <input
+            type="text"
+            placeholder="Assignee"
+            value={assignee}
+            onChange={e => setAssignee(e.target.value)}
+            className="bg-slate-700 p-2 rounded"
+          />
+
+          <select
+            value={jurisdiction}
+            onChange={e => setJurisdiction(e.target.value)}
+            className="bg-slate-700 p-2 rounded"
+          >
+            <option value="">All Countries</option>
+            <option value="US">US</option>
+            <option value="IN">IN</option>
+          </select>
+
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            className="bg-slate-700 p-2 rounded"
+          >
+            <option value="">All Status</option>
+            <option value="Filed">Filed</option>
+          </select>
         </div>
-      </Section>
 
-      {/* SAVED SEARCHES */}
-      <Section title="Saved Searches">
-        <ul className="space-y-4 text-gray-300">
-          <li className="hover:text-indigo-400 transition cursor-pointer">
-            Patent filings in 2025
-          </li>
-          <li className="hover:text-indigo-400 transition cursor-pointer">
-            Trademark disputes in India
-          </li>
-        </ul>
-      </Section>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={handleSearch}
+            className="bg-indigo-600 px-6 py-2 rounded hover:bg-indigo-700"
+          >
+            Search
+          </button>
 
-      {/* RECENT ACTIVITY */}
-      <Section title="Recent Activity">
-        <ul className="space-y-4 text-gray-300">
-          <li>🔍 You searched for Filing X yesterday</li>
-          <li>📌 You pinned Filing Y last week</li>
-        </ul>
-      </Section>
-
-      {/* ACHIEVEMENTS */}
-      <Section title="Achievements">
-        <div className="flex flex-wrap gap-8">
-          <Achievement text="First Search Completed" />
-          <Achievement text="10 Filings Tracked" />
+          <button
+            onClick={clearFilters}
+            className="border border-gray-500 px-6 py-2 rounded hover:bg-slate-700"
+          >
+            Clear
+          </button>
         </div>
-      </Section>
+      </div>
+
+      {/* RESULTS */}
+      {loading && <p className="text-gray-400">Searching...</p>}
+
+      {!searched && (
+        <p className="text-gray-500 text-center">
+          Use filters and click Search to view results.
+        </p>
+      )}
+
+      {searched && !loading && filteredAssets.length === 0 && (
+        <p className="text-gray-400 text-center">
+          No matching assets found.
+        </p>
+      )}
+
+      {/* CARD VIEW */}
+      {filteredAssets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredAssets.map(asset => (
+            <div
+              key={asset.id}
+              className="bg-slate-800 p-6 rounded-xl shadow-lg hover:shadow-2xl transition"
+            >
+              <h3 className="text-indigo-400 font-semibold text-lg mb-2">
+                {asset.title}
+              </h3>
+
+              <p className="text-sm text-gray-400 mb-1">
+                Inventor: {asset.inventor}
+              </p>
+              <p className="text-sm text-gray-400 mb-1">
+                Assignee: {asset.assignee}
+              </p>
+              <p className="text-sm text-gray-400 mb-1">
+                Status: {asset.status}
+              </p>
+              <p className="text-sm text-gray-400 mb-4">
+                Jurisdiction: {asset.jurisdiction}
+              </p>
+
+              <button
+                onClick={() => navigate(`/assets/${asset.id}`)}
+                className="bg-indigo-600 px-4 py-2 rounded hover:bg-indigo-700"
+              >
+                View Details
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
     </div>
   );
 }
-
-/* ---------- Components ---------- */
-
-const Section = ({ title, children }) => (
-  <div className="backdrop-blur-lg bg-white/5 border border-white/10 rounded-2xl p-8 mb-14 shadow-xl hover:shadow-2xl transition">
-    <h3 className="text-xl font-semibold text-indigo-400 mb-6">
-      {title}
-    </h3>
-    {children}
-  </div>
-);
-
-const Achievement = ({ text }) => (
-  <div
-    className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white
-    p-6 rounded-2xl text-center shadow-lg
-    hover:scale-105 transition transform"
-  >
-    🏅
-    <p className="text-sm mt-3 font-medium">{text}</p>
-  </div>
-);
