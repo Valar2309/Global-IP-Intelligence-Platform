@@ -58,6 +58,15 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET,  "/api/user/profile").hasRole("USER")
+                        .requestMatchers(HttpMethod.PUT,  "/api/user/profile").hasRole("USER")
+
+                        .requestMatchers(HttpMethod.GET,  "/api/analyst/profile").hasRole("ANALYST")
+                        .requestMatchers(HttpMethod.PUT,  "/api/analyst/profile").hasRole("ANALYST")
+
+                        .requestMatchers(HttpMethod.GET,  "/api/admin/profile").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,  "/api/admin/profile").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/change-password").hasRole("ADMIN")
 
                         // ── Public Endpoints ─────────────────────────
                         .requestMatchers(HttpMethod.POST, "/api/user/register").permitAll()

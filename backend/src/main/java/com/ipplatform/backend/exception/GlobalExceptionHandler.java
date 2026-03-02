@@ -16,8 +16,8 @@ public class GlobalExceptionHandler {
     // ── Auth failures → 401 ──────────────────────────────────────────────────────
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<Map<String, String>> handleAuth(AuthException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", ex.getMessage()));
+       return ResponseEntity.status(HttpStatus.BAD_REQUEST)    // 400
+        .body(Map.of("error", ex.getMessage()));
     }
 
     // ── Bad request → 400 ────────────────────────────────────────────────────────
