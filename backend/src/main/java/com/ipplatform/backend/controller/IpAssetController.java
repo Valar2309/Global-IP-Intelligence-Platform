@@ -1,41 +1,39 @@
 package com.ipplatform.backend.controller;
 
 import com.ipplatform.backend.model.IpAsset;
-import com.ipplatform.backend.repository.IpAssetRepository;
-
-import org.springframework.http.ResponseEntity;
+import com.ipplatform.backend.service.IpAssetService;
+import com.ipplatform.backend.dto.IpAssetSummaryDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/ip-assets")
+@CrossOrigin
 public class IpAssetController {
 
-    private final IpAssetRepository ipAssetRepository;
+    @Autowired
+    private IpAssetService service;
 
-    public IpAssetController(IpAssetRepository ipAssetRepository) {
-        this.ipAssetRepository = ipAssetRepository;
-    }
-
-    // ✅ STORE (Create IP Asset)
-    @PostMapping
-    public IpAsset createIpAsset(@RequestBody IpAsset ipAsset) {
-        ipAsset.setLastUpdated(LocalDateTime.now());
-        return ipAssetRepository.save(ipAsset);
-    }
-
-    // ✅ DISPLAY ALL
+    // 🔎 Search with pagination
     @GetMapping
-    public List<IpAsset> getAllIpAssets() {
-        return ipAssetRepository.findAll();
+    public Page<IpAssetSummaryDTO> search(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return service.search(keyword, page, size);
     }
-    @GetMapping("/{id}")
-public ResponseEntity<IpAsset> getById(@PathVariable Long id) {
-    return ipAssetRepository.findById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-}
 
+    // ➕ Store new IP
+    @PostMapping
+    public IpAsset save(@RequestBody IpAsset asset) {
+        return service.save(asset);
+    }
+
+    // 📄 Full Detail
+    @GetMapping("/{id}")
+    public IpAsset getById(@PathVariable Long id) {
+        return service.getById(id);
+    }
 }
