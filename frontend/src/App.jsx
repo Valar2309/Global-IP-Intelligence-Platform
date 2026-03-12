@@ -11,7 +11,7 @@ import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/LandingPage";
 import Login from "./Pages/Login";
 import Register from "./Pages/Register";
-
+import UserSubscriptionsPage from "./Pages/user/UserSubscriptionsPage";
 import AdminDashboard from "./Pages/AdminDashboard";
 
 /* 🔥 ANALYST STRUCTURE */
@@ -21,31 +21,26 @@ import AnalystDashboardPage from "./Pages/Analyst/AnalystDashboardPage";
 import AnalystSearchPage from "./Pages/Analyst/AnalystSearchPage";
 import AnalystVisualizationPage from "./Pages/Analyst/AnalystVisualizationPage";
 import AnalystExportPage from "./Pages/Analyst/AnalystExportPage";
-
+import AnalystAssetsPage from "./Pages/Analyst/AnalystAssetsPage";
 /* 🔥 NEW DETAIL PAGE */
 import PatentDetailPage from "./Pages/Analyst/PatentDetailPage";
-
-
 
 import UserLayout from "./Pages/User/UserLayout";
 import UserDashboardPage from "./Pages/User/UserDashboardPage";
 import UserSearchPage from "./Pages/User/UserSearchPage";
 import UserWatchlistPage from "./Pages/User/UserWatchlistPage";
 import UserHistoryPage from "./Pages/User/UserHistoryPage";
-import UserPatentDetailPage from "./Pages/User/UserPatentDetailPage"
+import UserPatentDetailPage from "./Pages/User/UserPatentDetailPage";
 export default function App() {
-
   useEffect(() => {
     initializeAdmin();
   }, []);
 
   return (
     <>
-
       {/* ROUTES */}
 
       <Routes>
-
         <Route path="/" element={<LandingPage />} />
 
         <Route path="/profile" element={<Profile />} />
@@ -54,14 +49,11 @@ export default function App() {
 
         <Route path="/register" element={<Register />} />
 
-
-
         <Route path="/admin" element={<AdminDashboard />} />
 
         {/* 🔥 ANALYST ROUTES */}
 
         <Route path="/analyst" element={<AnalystLayout />}>
-
           <Route index element={<AnalystDashboardPage />} />
 
           <Route path="dashboard" element={<AnalystDashboardPage />} />
@@ -71,38 +63,27 @@ export default function App() {
           <Route path="visualization" element={<AnalystVisualizationPage />} />
 
           <Route path="export" element={<AnalystExportPage />} />
-
+          <Route path="assets" element={<AnalystAssetsPage />} />
           {/* PATENT DETAIL PAGE */}
 
           <Route path="patent/:lensId" element={<PatentDetailPage />} />
 
           <Route path="profile" element={<Profile />} />
-
         </Route>
 
+        <Route path="/user" element={<UserLayout />}>
+          <Route index element={<UserDashboardPage />} />
+          <Route path="dashboard" element={<UserDashboardPage />} />
+          <Route path="search" element={<UserSearchPage />} />
+          <Route path="watchlist" element={<UserWatchlistPage />} />
+          <Route path="history" element={<UserHistoryPage />} />
+          <Route path="subscriptions" element={<UserSubscriptionsPage />} />
 
-       
-
-<Route path="/user" element={<UserLayout/>}>
-
-  <Route index element={<UserDashboardPage/>}/>
-  <Route path="dashboard" element={<UserDashboardPage/>}/>
-  <Route path="search" element={<UserSearchPage/>}/>
-  <Route path="watchlist" element={<UserWatchlistPage/>}/>
-  <Route path="history" element={<UserHistoryPage/>}/>
-
-  {/* IMPORTANT */}
-  <Route path="patent/:lensId" element={<UserPatentDetailPage/>}/>
-
-  <Route path="profile" element={<Profile/>}/>
-
-</Route>
+          {/* IMPORTANT */}
+          <Route path="patent/:lensId" element={<UserPatentDetailPage />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
       </Routes>
-
-        
-        
-
-
 
       {/* TOAST */}
 
@@ -113,8 +94,6 @@ export default function App() {
         newestOnTop
         pauseOnHover
       />
-
     </>
   );
-
 }
