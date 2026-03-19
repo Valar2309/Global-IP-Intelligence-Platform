@@ -11,7 +11,6 @@ import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/LandingPage";
 import Login from "./Pages/Login";
 import Register from "./Pages/Register";
-import UserSubscriptionsPage from "./Pages/user/UserSubscriptionsPage";
 import AdminDashboard from "./Pages/AdminDashboard";
 
 /* 🔥 ANALYST STRUCTURE */
@@ -22,6 +21,7 @@ import AnalystSearchPage from "./Pages/Analyst/AnalystSearchPage";
 import AnalystVisualizationPage from "./Pages/Analyst/AnalystVisualizationPage";
 import AnalystExportPage from "./Pages/Analyst/AnalystExportPage";
 import AnalystAssetsPage from "./Pages/Analyst/AnalystAssetsPage";
+import AnalystStatusDashboard from "./Pages/Analyst/AnalystStatusDashboard";
 /* 🔥 NEW DETAIL PAGE */
 import PatentDetailPage from "./Pages/Analyst/PatentDetailPage";
 
@@ -31,6 +31,7 @@ import UserSearchPage from "./Pages/User/UserSearchPage";
 import UserWatchlistPage from "./Pages/User/UserWatchlistPage";
 import UserHistoryPage from "./Pages/User/UserHistoryPage";
 import UserPatentDetailPage from "./Pages/User/UserPatentDetailPage";
+import UserStatusDashboard from "./Pages/user/UserStatusDashboard";
 export default function App() {
   useEffect(() => {
     initializeAdmin();
@@ -67,7 +68,7 @@ export default function App() {
           {/* PATENT DETAIL PAGE */}
 
           <Route path="patent/:lensId" element={<PatentDetailPage />} />
-
+          <Route path="status-dashboard" element={<AnalystStatusDashboard />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 
@@ -77,7 +78,7 @@ export default function App() {
           <Route path="search" element={<UserSearchPage />} />
           <Route path="watchlist" element={<UserWatchlistPage />} />
           <Route path="history" element={<UserHistoryPage />} />
-          <Route path="subscriptions" element={<UserSubscriptionsPage />} />
+          <Route path="status-dashboard" element={<UserStatusDashboard />} />
 
           {/* IMPORTANT */}
           <Route path="patent/:lensId" element={<UserPatentDetailPage />} />

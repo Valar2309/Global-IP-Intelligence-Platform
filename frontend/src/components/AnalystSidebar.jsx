@@ -1,15 +1,14 @@
-
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Search,
   BarChart3,
   FileDown,
-  User
+  User,
+  Activity,
 } from "lucide-react";
 
 export default function AnalystSidebar() {
-
   const linkStyle = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300
     ${
@@ -19,7 +18,6 @@ export default function AnalystSidebar() {
     }`;
 
   return (
-
     <aside
       className="
       fixed
@@ -34,7 +32,6 @@ export default function AnalystSidebar() {
       overflow-y-auto
       "
     >
-
       {/* SIDEBAR TITLE */}
 
       <h2
@@ -53,7 +50,6 @@ export default function AnalystSidebar() {
         "
       >
         Analyst Panel
-
         <span
           className="
           absolute
@@ -65,14 +61,11 @@ export default function AnalystSidebar() {
           rounded-full
           "
         ></span>
-
       </h2>
-
 
       {/* NAVIGATION LINKS */}
 
       <div className="space-y-2">
-
         <NavLink to="/analyst/dashboard" className={linkStyle}>
           <LayoutDashboard size={18} />
           Dashboard
@@ -93,16 +86,16 @@ export default function AnalystSidebar() {
           Export
         </NavLink>
 
+        <NavLink to="/analyst/status-dashboard" className={linkStyle}>
+          <Activity size={18} />
+          Status Dashboard
+        </NavLink>
+
         <NavLink to="/analyst/profile" className={linkStyle}>
           <User size={18} />
           Profile
         </NavLink>
-
       </div>
-
     </aside>
-
   );
-
 }
-
