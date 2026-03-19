@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+/* GLOBAL */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* LIGHT MODE */
+
+body {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.2px;
+
+  @apply bg-gray-100 text-gray-800 transition-colors duration-300;
+}
+
+/* DARK MODE */
+
+.dark body {
+  @apply bg-slate-900 text-gray-100;
+}
+
+/* COMMON CARD STYLE */
+
+.card {
+  @apply bg-white border border-gray-200 rounded-xl shadow-lg p-6
+  dark:bg-slate-800 dark:border-slate-700;
+}
+
+/* INPUT */
+
+.premium-input {
+  @apply w-full p-3 rounded-xl
+  border border-gray-300
+  bg-white text-gray-800
+  focus:ring-2 focus:ring-indigo-500
+  outline-none
+  transition
+
+  dark:bg-slate-800
+  dark:border-slate-700
+  dark:text-white;
+}
