@@ -2,38 +2,38 @@ package com.ipplatform.backend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
-import java.util.List;
 
 @Component
 public class JwtUtil {
 
-    private final Key key;
-    private final long accessTokenMs;
+    @Value("${jwt.secret}")
+    private String secret;
 
-    public JwtUtil(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-expiry-ms:3600000}") long accessTokenMs) {
+    @Value("${jwt.access-token-expiry-ms:3600000}")
+    private long accessTokenMs;
+
+    private Key key;
+
+    // ✅ Initialize key after values are injected
+    @PostConstruct
+    public void init() {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.accessTokenMs = accessTokenMs;
     }
 
     /**
-     * Generates a signed access token.
-     *
-     * @param username     the subject's username
-     * @param role         single role string e.g. "ROLE_USER", "ROLE_ANALYST", "ROLE_ADMIN"
-     * @param subjectType  "USER" | "ANALYST" | "ADMIN" — stored as claim for filter to use
+     * Generate Access Token
      */
     public String generateAccessToken(String username, String role, String subjectType) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("role",        role)
+                .claim("role", role)
                 .claim("subjectType", subjectType)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenMs))
@@ -41,6 +41,9 @@ public class JwtUtil {
                 .compact();
     }
 
+    /**
+     * Generate Refresh Token
+     */
     public String generateRefreshToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
@@ -51,6 +54,9 @@ public class JwtUtil {
                 .compact();
     }
 
+    /**
+     * Parse Token
+     */
     public Claims parseToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -59,6 +65,9 @@ public class JwtUtil {
                 .getBody();
     }
 
+    /**
+     * Validate Access Token
+     */
     public void validateAccessToken(String token) {
         Claims claims = parseToken(token);
         if ("refresh".equals(claims.get("type"))) {
@@ -66,14 +75,23 @@ public class JwtUtil {
         }
     }
 
+    /**
+     * Extract Username
+     */
     public String extractUsername(String token) {
         return parseToken(token).getSubject();
     }
 
+    /**
+     * Extract Role
+     */
     public String extractRole(String token) {
         return (String) parseToken(token).get("role");
     }
 
+    /**
+     * Extract Subject Type
+     */
     public String extractSubjectType(String token) {
         return (String) parseToken(token).get("subjectType");
     }

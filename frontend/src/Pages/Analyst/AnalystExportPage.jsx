@@ -1,7 +1,5 @@
-
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useMemo } from "react";
 
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
@@ -11,119 +9,65 @@ import { Document, Packer, Paragraph, Table, TableRow, TableCell } from "docx";
 
 export default function AnalystExportPage() {
 
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const assets = location.state?.results || [];
 
-  const query = searchParams.get("q") || "artificial intelligence";
+  console.log("DATA RECEIVED:", assets);
 
-  const [assets, setAssets] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // ❌ No Data Case
+  if (!assets.length) {
+    return (
+      <div className="min-h-screen bg-[#0b1220] flex items-center justify-center text-white">
+        <div className="text-center">
+          <h2 className="text-2xl text-red-400 font-bold">No Data Found</h2>
+          <p className="text-gray-400 mt-2">
+            Please go back and search patents first
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    fetchAssets();
-  }, [query]);
+  // ✅ Format Data
+  const formattedData = useMemo(() =>
+    assets.map(a => ({
+      Title: a.title,
+      Inventor: a.inventors?.join(", "),
+      Applicant: a.applicants?.join(", "),
+      Status: a.patentStatus,
+      Jurisdiction: a.jurisdiction,
+      PublishedDate: a.datePublished
+    })),
+  [assets]);
 
-  const fetchAssets = async () => {
-
-    setLoading(true);
-
-    try {
-
-      const response = await axios.get(
-        "http://localhost:8081/api/search",
-        {
-          params: {
-            q: query,
-            type: "PATENT",
-            page: 0,
-            size: 50
-          }
-        }
-      );
-
-      setAssets(response.data.results || []);
-
-    } catch (error) {
-
-      console.error(error);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-  const formattedData = assets.map(a => ({
-    Title: a.title,
-    Inventor: a.inventors?.join(", "),
-    Applicant: a.applicants?.join(", "),
-    Status: a.patentStatus,
-    Jurisdiction: a.jurisdiction,
-    PublishedDate: a.datePublished
-  }));
+  /* ================= EXPORT ================= */
 
   const exportCSV = () => {
-
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;"
-    });
-
-    saveAs(blob, "Patent_Report.csv");
-
+    const ws = XLSX.utils.json_to_sheet(formattedData);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    saveAs(new Blob([csv]), "Patent_Report.csv");
   };
 
   const exportXLSX = () => {
-
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Patent Report"
-    );
-
-    XLSX.writeFile(workbook, "Patent_Report.xlsx");
-
+    const ws = XLSX.utils.json_to_sheet(formattedData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+    XLSX.writeFile(wb, "Patent_Report.xlsx");
   };
 
   const exportJSON = () => {
-
-    const blob = new Blob(
-      [JSON.stringify(formattedData, null, 2)],
-      { type: "application/json" }
+    saveAs(
+      new Blob([JSON.stringify(formattedData, null, 2)]),
+      "Patent_Report.json"
     );
-
-    saveAs(blob, "Patent_Report.json");
-
   };
 
   const exportPDF = () => {
-
     const doc = new jsPDF();
-
-    doc.text(
-      `Patent Intelligence Report: ${query}`,
-      14,
-      15
-    );
+    doc.text("Patent Intelligence Report", 14, 15);
 
     doc.autoTable({
-
-      head: [
-        [
-          "Title",
-          "Inventor",
-          "Applicant",
-          "Status",
-          "Jurisdiction"
-        ]
-      ],
-
+      head: [["Title","Inventor","Applicant","Status","Country"]],
       body: formattedData.map(a => [
         a.Title,
         a.Inventor,
@@ -131,18 +75,15 @@ export default function AnalystExportPage() {
         a.Status,
         a.Jurisdiction
       ]),
-
       startY: 25
-
     });
 
     doc.save("Patent_Report.pdf");
-
   };
 
   const exportWord = async () => {
 
-    const tableRows = formattedData.map(a =>
+    const rows = formattedData.map(a =>
       new TableRow({
         children: [
           new TableCell({ children: [new Paragraph(a.Title)] }),
@@ -155,136 +96,112 @@ export default function AnalystExportPage() {
     );
 
     const doc = new Document({
-      sections: [
-        {
-          children: [
-            new Paragraph(`Patent Intelligence Report: ${query}`),
-            new Table({
-              rows: tableRows
-            })
-          ]
-        }
-      ]
+      sections: [{
+        children: [
+          new Paragraph("Patent Intelligence Report"),
+          new Table({ rows })
+        ]
+      }]
     });
 
     const blob = await Packer.toBlob(doc);
-
     saveAs(blob, "Patent_Report.docx");
-
   };
+
+  /* ================= UI ================= */
 
   return (
 
-    <div className="space-y-10 text-white">
+    <div className="min-h-screen bg-[#0b1220] text-white p-8 space-y-10">
 
       {/* HEADER */}
-
       <div className="
-      bg-gradient-to-r
-      from-indigo-500
-      to-purple-600
-      p-8
-      rounded-xl
-      shadow-2xl
+        bg-[#1e293b]
+        p-8
+        rounded-2xl
+        border border-slate-700
+        shadow-lg
+        hover:shadow-indigo-500/20
+        transition
       ">
-
-        <h2 className="text-3xl font-bold">
-          Patent Export Center
+        <h2 className="text-3xl font-bold text-indigo-400">
+          🚀 Patent Export Center
         </h2>
 
-        <p className="mt-2 opacity-90">
-          Export search results for:
-          <span className="ml-2 font-semibold">
-            {query}
-          </span>
+        <p className="mt-2 text-gray-400">
+          Total Records: {assets.length}
         </p>
-
       </div>
 
-      {loading && (
-        <p className="text-gray-400">
-          Loading patents...
-        </p>
-      )}
-
-      {/* STATS */}
-
-      <div className="grid md:grid-cols-3 gap-6">
-
-        <StatCard title="Patents Loaded" value={assets.length} />
-
-        <StatCard title="Export Formats" value="5" />
-
-        <StatCard
-          title="System Status"
-          value={loading ? "Loading" : "Ready"}
-        />
-
-      </div>
-
-      {/* EXPORT OPTIONS */}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* EXPORT CARDS */}
+      <div className="grid md:grid-cols-3 gap-8">
 
         <ExportCard
           title="CSV Export"
-          desc="Download structured CSV dataset"
+          desc="Download CSV dataset"
           action={exportCSV}
-          color="bg-green-600"
+          color="green"
         />
 
         <ExportCard
           title="Excel (.xlsx)"
-          desc="Professional spreadsheet report"
+          desc="Spreadsheet report"
           action={exportXLSX}
-          color="bg-emerald-600"
+          color="emerald"
         />
 
         <ExportCard
           title="PDF Report"
-          desc="Formatted patent intelligence report"
+          desc="Formatted document"
           action={exportPDF}
-          color="bg-red-600"
+          color="red"
         />
 
         <ExportCard
           title="Word Document"
-          desc="Editable research document"
+          desc="Editable file"
           action={exportWord}
-          color="bg-blue-600"
+          color="blue"
         />
 
         <ExportCard
           title="JSON Dataset"
-          desc="Machine readable export"
+          desc="Developer format"
           action={exportJSON}
-          color="bg-purple-600"
+          color="purple"
         />
 
       </div>
 
     </div>
-
   );
-
 }
+
+/* ================= CARD ================= */
 
 function ExportCard({ title, desc, action, color }) {
 
-  return (
+  const colors = {
+    green: "bg-green-500/20 text-green-400",
+    emerald: "bg-emerald-500/20 text-emerald-400",
+    red: "bg-red-500/20 text-red-400",
+    blue: "bg-blue-500/20 text-blue-400",
+    purple: "bg-purple-500/20 text-purple-400"
+  };
 
+  return (
     <div className="
-      bg-slate-800
+      bg-[#1e293b]
       border border-slate-700
       p-6
       rounded-xl
-      shadow-xl
+      transition-all duration-300
       hover:-translate-y-2
-      hover:shadow-indigo-500/20
-      transition
+      hover:shadow-indigo-500/30
+      cursor-pointer
     ">
 
-      <h3 className="text-lg font-semibold text-white mb-2">
+      <h3 className="text-lg font-semibold mb-2 text-indigo-400">
         {title}
       </h3>
 
@@ -294,51 +211,18 @@ function ExportCard({ title, desc, action, color }) {
 
       <button
         onClick={action}
-        className={`${color}
-        px-6
-        py-3
-        rounded-lg
-        w-full
-        text-white
-        hover:scale-105
-        transition
+        className={`
+          w-full py-2 rounded-lg font-semibold
+          ${colors[color]}
+          transition-all duration-300
+          hover:scale-105
+          hover:shadow-lg
         `}
       >
-        Download
+        ⬇ Download
       </button>
 
     </div>
-
   );
-
-}
-
-function StatCard({ title, value }) {
-
-  return (
-
-    <div className="
-      bg-slate-800
-      border border-slate-700
-      p-6
-      rounded-xl
-      shadow-xl
-      hover:-translate-y-1
-      hover:shadow-indigo-500/20
-      transition
-    ">
-
-      <p className="text-gray-400 text-sm">
-        {title}
-      </p>
-
-      <h3 className="text-2xl font-bold text-indigo-400 mt-1">
-        {value}
-      </h3>
-
-    </div>
-
-  );
-
 }
 

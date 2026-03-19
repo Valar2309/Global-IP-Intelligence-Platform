@@ -2,156 +2,116 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import {
-  LayoutDashboard,
-  TrendingUp,
-  FileText,
-  Shield,
-  AlertCircle,
-  Clock,
-  Award,
-  Search,
-  Download,
-  RefreshCw,
-  Activity,
-  Calendar,
-  BarChart3,
-  ExternalLink,
-  X,
-  CheckCircle,
-  PieChart,
-} from "lucide-react";
+import { LayoutDashboard, FileText, AlertCircle, Award } from "lucide-react";
 
 export default function AnalystStatusDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStage, setFilterStage] = useState("all");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState(null);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [patents, setPatents] = useState([]);
-  const [page, setPage] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  /* ---------- STATUS MAPPING ---------- */
+  const [filterStage, setFilterStage] = useState("all");
+  const [filterJurisdiction, setFilterJurisdiction] = useState("all");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [patents, setPatents] = useState([]);
+
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  /* ---------- DEBOUNCE SEARCH ---------- */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  /* ---------- STATUS MAP ---------- */
   const mapStatus = (status) => {
-    switch (status) {
-      case "ACTIVE":
-        return "Granted";
-      case "PENDING":
-        return "Application";
-      case "DISCONTINUED":
-        return "Expired";
-      default:
-        return "Application";
-    }
+    if (status === "ACTIVE") return "Granted";
+    if (status === "PENDING") return "Application";
+    if (status === "DISCONTINUED") return "Expired";
+    return "Application";
   };
 
-  /* ---------- FETCH GLOBAL DATA ---------- */
-  const fetchPatents = async (reset = false) => {
+  /* ---------- FETCH ---------- */
+  const fetchPatents = async () => {
     try {
       setIsLoading(true);
 
       const response = await axios.get("http://localhost:8081/api/search", {
         params: {
-          q: searchTerm || "technology",
+          q: debouncedSearch || "technology",
           type: "PATENT",
-          page: reset ? 0 : page,
+          page: page,
           size: 10,
         },
       });
 
-      const newData = (response.data.results || []).map((p) => ({
-        id: p.lensId,
-        title: p.title,
-        type: "Patent",
-        stage: mapStatus(p.patentStatus),
-        lifecycle: Math.floor(Math.random() * 100),
-        renewal: "-",
-        expiry: "-",
-        jurisdiction: p.jurisdiction,
-        assignee: p.applicants?.[0] || "N/A",
-        priority: "medium",
-        riskScore: Math.floor(Math.random() * 100),
-        actions: ["view", "export"],
-      }));
+      const results = response.data.results || [];
 
-      if (reset) {
-        setPatents(newData);
-        setPage(1);
-      } else {
-        setPatents((prev) => [...prev, ...newData]);
-        setPage((prev) => prev + 1);
-      }
-    } catch (error) {
-      console.error(error);
+      setPatents(
+        results.map((p) => ({
+          id: p.lensId,
+          title: p.title,
+          stage: mapStatus(p.patentStatus),
+          jurisdiction: p.jurisdiction,
+        }))
+      );
+
+      setTotalPages(response.data.totalPages || 1);
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPatents(true);
-  }, []);
+    fetchPatents();
+  }, [debouncedSearch, page]);
 
-  /* ---------- STATS ---------- */
-  const computeStats = useCallback(() => {
-    const total = patents.length;
-    const applications = patents.filter(
-      (p) => p.stage === "Application"
-    ).length;
-    const granted = patents.filter((p) => p.stage === "Granted").length;
-    const expired = patents.filter((p) => p.stage === "Expired").length;
-
-    return [
-      {
-        label: "Total Assets",
-        value: total,
-        change: "+5%",
-        trend: "up",
-        icon: LayoutDashboard,
-        filterKey: "all",
-      },
-      {
-        label: "Applications",
-        value: applications,
-        change: "+2%",
-        trend: "up",
-        icon: FileText,
-        filterKey: "Application",
-      },
-      {
-        label: "Granted",
-        value: granted,
-        change: "+3%",
-        trend: "up",
-        icon: Award,
-        filterKey: "Granted",
-      },
-      {
-        label: "Expired",
-        value: expired,
-        change: "-1%",
-        trend: "down",
-        icon: AlertCircle,
-        filterKey: "Expired",
-      },
-    ];
-  }, [patents]);
-
-  const stats = computeStats();
-
+  /* ---------- FILTERED ---------- */
   const filteredPatents = patents.filter(
     (p) =>
-      p.title?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filterStage === "all" || p.stage === filterStage)
+      (filterStage === "all" || p.stage === filterStage) &&
+      (filterJurisdiction === "all" || p.jurisdiction === filterJurisdiction)
   );
 
+  /* ---------- STATS ---------- */
+  const stats = [
+    {
+      label: "Total",
+      value: patents.length,
+      icon: LayoutDashboard,
+      key: "all",
+    },
+    {
+      label: "Applications",
+      value: patents.filter((p) => p.stage === "Application").length,
+      icon: FileText,
+      key: "Application",
+    },
+    {
+      label: "Granted",
+      value: patents.filter((p) => p.stage === "Granted").length,
+      icon: Award,
+      key: "Granted",
+    },
+    {
+      label: "Expired",
+      value: patents.filter((p) => p.stage === "Expired").length,
+      icon: AlertCircle,
+      key: "Expired",
+    },
+  ];
+
   /* ---------- EXPORT ---------- */
-  const handleExportAsset = (asset) => {
+  const handleExport = (asset) => {
     const doc = new jsPDF();
-    doc.text("Patent Report", 14, 20);
 
     autoTable(doc, {
-      startY: 30,
       head: [["Field", "Value"]],
       body: [
         ["Title", asset.title],
@@ -166,42 +126,62 @@ export default function AnalystStatusDashboard() {
 
   /* ---------- UI ---------- */
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      <h1 className="text-3xl font-bold text-white mb-6">
-        Analyst Global Dashboard
-      </h1>
+    <div className="min-h-screen bg-slate-950 p-6 text-white">
+      <h1 className="text-3xl font-bold mb-6">Analyst Global Dashboard</h1>
 
       {/* KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {stats.map((s, i) => {
+          const Icon = s.icon;
           return (
             <div
               key={i}
-              onClick={() => setFilterStage(stat.filterKey)}
+              onClick={() => setFilterStage(s.key)}
               className="bg-slate-900 p-5 rounded-lg cursor-pointer"
             >
               <Icon className="text-blue-400 mb-2" />
-              <p className="text-gray-400 text-sm">{stat.label}</p>
-              <p className="text-white text-2xl font-bold">{stat.value}</p>
+              <p className="text-sm text-gray-400">{s.label}</p>
+              <p className="text-2xl font-bold">{s.value}</p>
             </div>
           );
         })}
       </div>
 
-      {/* SEARCH */}
-      <input
-        placeholder="Search global patents..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          fetchPatents(true);
-        }}
-        className="w-full mb-6 px-4 py-2 bg-slate-800 text-white rounded"
-      />
+      {/* SEARCH + FILTERS */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search patents..."
+          className="flex-1 px-4 py-2 bg-slate-800 rounded"
+        />
+
+        <select
+          value={filterStage}
+          onChange={(e) => setFilterStage(e.target.value)}
+          className="px-4 py-2 bg-slate-800 rounded"
+        >
+          <option value="all">All Stages</option>
+          <option value="Application">Application</option>
+          <option value="Granted">Granted</option>
+          <option value="Expired">Expired</option>
+        </select>
+
+        <select
+          value={filterJurisdiction}
+          onChange={(e) => setFilterJurisdiction(e.target.value)}
+          className="px-4 py-2 bg-slate-800 rounded"
+        >
+          <option value="all">All Jurisdictions</option>
+          <option value="US">US</option>
+          <option value="EP">EP</option>
+          <option value="IN">IN</option>
+          <option value="CN">CN</option>
+        </select>
+      </div>
 
       {/* TABLE */}
-      <div className="bg-slate-900 rounded-lg overflow-x-auto">
+      <div className="bg-slate-900 rounded overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-800 text-gray-300">
             <tr>
@@ -216,13 +196,13 @@ export default function AnalystStatusDashboard() {
           <tbody>
             {filteredPatents.map((p, i) => (
               <tr key={i} className="border-b border-slate-700">
-                <td className="px-4 py-3 text-white">{p.title}</td>
+                <td className="px-4 py-3">{p.title}</td>
                 <td className="px-4 py-3 text-blue-400">{p.id}</td>
                 <td className="px-4 py-3">{p.stage}</td>
                 <td className="px-4 py-3">{p.jurisdiction}</td>
                 <td className="px-4 py-3">
                   <button
-                    onClick={() => handleExportAsset(p)}
+                    onClick={() => handleExport(p)}
                     className="text-green-400"
                   >
                     Export
@@ -234,13 +214,26 @@ export default function AnalystStatusDashboard() {
         </table>
       </div>
 
-      {/* LOAD MORE */}
-      <div className="mt-6 text-center">
+      {/* PAGINATION */}
+      <div className="flex justify-center gap-4 mt-6">
         <button
-          onClick={() => fetchPatents()}
-          className="bg-indigo-600 px-6 py-2 rounded text-white"
+          disabled={page === 0}
+          onClick={() => setPage((p) => p - 1)}
+          className="px-4 py-2 bg-slate-800 rounded disabled:opacity-50"
         >
-          Load More
+          Prev
+        </button>
+
+        <span className="px-4 py-2">
+          Page {page + 1} / {totalPages}
+        </span>
+
+        <button
+          disabled={page + 1 >= totalPages}
+          onClick={() => setPage((p) => p + 1)}
+          className="px-4 py-2 bg-slate-800 rounded disabled:opacity-50"
+        >
+          Next
         </button>
       </div>
     </div>
