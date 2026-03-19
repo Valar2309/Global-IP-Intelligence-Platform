@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,6 +15,46 @@ export default function Login() {
     role: "USER",
   });
 
+  // Google login handler
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (!credentialResponse || !credentialResponse.credential) {
+      toast.error("Google login failed: No credential received");
+      return;
+    }
+
+    const decoded = jwtDecode(credentialResponse.credential);
+    console.log("Google user:", decoded);
+
+    try {
+      const res = await axios.post("http://localhost:8082/api/auth/google", {
+        token: credentialResponse.credential,
+      });
+
+      const data = res.data;
+      const cleanRole = data.role ? data.role.replace("ROLE_", "") : data.userType;
+
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("role", cleanRole);
+
+      toast.success("Google login successful 🚀");
+
+      setTimeout(() => {
+        if (cleanRole === "ADMIN") navigate("/admin");
+        else if (cleanRole === "ANALYST") navigate("/analyst");
+        else navigate("/user");
+      }, 800);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Invalid credentials");
+    }
+  };
+
+  // Hook to trigger Google login
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: () => toast.error("Google login failed"),
+  });
+
   const handleLogin = async () => {
     if (!form.username || !form.password) {
       toast.error("Please enter username and password");
@@ -21,15 +63,12 @@ export default function Login() {
 
     try {
       setLoading(true);
-      let endpoint = "";
-
-      if (form.role === "ADMIN") {
-        endpoint = "http://localhost:8081/api/admin/login";
-      } else if (form.role === "ANALYST") {
-        endpoint = "http://localhost:8081/api/analyst/login";
-      } else {
-        endpoint = "http://localhost:8081/api/user/login";
-      }
+      let endpoint =
+        form.role === "ADMIN"
+          ? "http://localhost:8082/api/admin/login"
+          : form.role === "ANALYST"
+          ? "http://localhost:8082/api/analyst/login"
+          : "http://localhost:8082/api/user/login";
 
       const res = await axios.post(endpoint, {
         username: form.username,
@@ -108,6 +147,21 @@ export default function Login() {
           {loading ? "Signing In..." : "Sign In"}
         </button>
 
+        {/* Divider */}
+        <div className="divider">OR</div>
+
+        {/* Custom Google Button */}
+        <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID">
+          <button onClick={() => googleLogin()} className="google-btn">
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
+              className="google-icon"
+            />
+            <span>Continue with Google</span>
+          </button>
+        </GoogleOAuthProvider>
+
         {/* Register Link */}
         <button
           className="secondary-btn"
@@ -126,7 +180,6 @@ export default function Login() {
         </div>
         <p className="copy">© 2026 Global IP Intelligence Platform</p>
       </footer>
-
       {/* Styles */}
       <style>{`
         .wrapper {
@@ -303,6 +356,42 @@ export default function Login() {
             padding: 35px 25px;
           }
         }
+ .divider {
+  margin: 16px 0;
+  text-align: center;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.google-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.google-btn:hover {
+  background: rgba(255,255,255,0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+
       `}</style>
     </div>
   );
