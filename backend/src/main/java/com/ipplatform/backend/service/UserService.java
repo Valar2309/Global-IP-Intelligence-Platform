@@ -94,6 +94,76 @@ public class UserService {
         catch (Exception ignored) {}
     }
 
+    // ── Google Login / Register (access_token flow) ───────────────────────────
+
+    /**
+     * POST /api/user/google
+     * Accepts a Google access_token from @react-oauth/google (implicit flow).
+     * Calls Google's userinfo endpoint to verify the token and get the user's
+     * email, name, and Google ID. Then finds or auto-creates a USER account.
+     */
+    public TokenPair googleLoginOrRegister(String accessToken) {
+        // 1. Exchange access_token for user info via Google's userinfo endpoint
+        java.util.Map<String, Object> googleUser;
+        try {
+            org.springframework.web.client.RestTemplate rt = new org.springframework.web.client.RestTemplate();
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> resp = rt.getForObject(
+                    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + accessToken,
+                    java.util.Map.class);
+            googleUser = resp;
+        } catch (Exception e) {
+            throw new AuthException("Failed to verify Google token. Please try again.");
+        }
+
+        if (googleUser == null || googleUser.get("sub") == null)
+            throw new AuthException("Invalid Google token.");
+
+        String googleId = (String) googleUser.get("sub");
+        String email    = (String) googleUser.get("email");
+        String name     = (String) googleUser.getOrDefault("name", email);
+
+        if (email == null || email.isBlank())
+            throw new AuthException("Google account has no email.");
+
+        // 2. Find existing user by email
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            // 3a. Auto-register — check cross-table uniqueness on email
+            if (analystRepository.existsByEmail(email))
+                throw new AuthException("This email is already registered as an Analyst account.");
+
+            // Derive a unique username from email local-part
+            String base     = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "");
+            String username = base;
+            int suffix = 1;
+            while (userRepository.existsByUsername(username) || analystRepository.existsByUsername(username)) {
+                username = base + suffix++;
+            }
+
+            user = new User();
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setPassword(null);          // no password for Google users
+            user.setName(name);
+            user.setProvider("GOOGLE");
+            user.setProviderId(googleId);
+            user.setRoles(List.of("ROLE_USER"));
+            user.setStatus("ACTIVE");
+            userRepository.save(user);
+
+            try { emailService.sendWelcomeEmail(email, name); } catch (Exception ignored) {}
+
+        } else {
+            // 3b. Existing user — must be a Google account or allow linking
+            if ("LOCAL".equals(user.getProvider()))
+                throw new AuthException("This email is already registered with a password. Please log in with your password.");
+        }
+
+        return issueTokens(user, false);
+    }
+
     // ── Login ─────────────────────────────────────────────────────────────────
 
     /**

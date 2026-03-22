@@ -32,6 +32,7 @@ import UserWatchlistPage from "./Pages/User/UserWatchlistPage";
 import UserHistoryPage from "./Pages/User/UserHistoryPage";
 import UserPatentDetailPage from "./Pages/User/UserPatentDetailPage";
 import UserStatusDashboard from "./Pages/user/UserStatusDashboard";
+import UserSubscriptionsPage from "./Pages/user/UserSubscriptionsPage";
 export default function App() {
   useEffect(() => {
     initializeAdmin();
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="watchlist" element={<UserWatchlistPage />} />
           <Route path="history" element={<UserHistoryPage />} />
           <Route path="status-dashboard" element={<UserStatusDashboard />} />
+          <Route path="subscriptions" element={<UserSubscriptionsPage />} />
 
           {/* IMPORTANT */}
           <Route path="patent/:lensId" element={<UserPatentDetailPage />} />

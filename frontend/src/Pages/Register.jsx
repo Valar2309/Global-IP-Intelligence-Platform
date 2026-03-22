@@ -2,8 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { BACKEND_URL } from "../config";
 
-export default function Register() {
+const GOOGLE_CLIENT_ID =
+  "268780669175-b9ai4tt1rcing8mejqes71o702ull04k.apps.googleusercontent.com";
+
+// ── Inner component so useGoogleLogin is inside GoogleOAuthProvider ──────────
+function RegisterInner() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +47,7 @@ export default function Register() {
 
       // USER Registration
       if (form.role === "USER") {
-        await axios.post("http://localhost:8081/api/user/register", {
+        await axios.post(`${BACKEND_URL}/api/user/register`, {
           username: form.username,
           email: form.email,
           password: form.password,
@@ -68,7 +74,7 @@ export default function Register() {
       formData.append("organization", "Independent");
       formData.append("document", form.proofFile);
 
-      await axios.post("http://localhost:8081/api/analyst/register", formData);
+      await axios.post(`${BACKEND_URL}/api/analyst/register`, formData);
 
       toast.success("Analyst request submitted. Wait for admin approval.");
       navigate("/login");
@@ -78,6 +84,38 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  // ── Google Sign-Up ──────────────────────────────────────────────────────────
+  const handleGoogleSuccess = async (tokenResponse) => {
+    if (!tokenResponse?.access_token) {
+      toast.error("Google sign-up failed: No token received");
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await axios.post(`${BACKEND_URL}/api/user/google`, {
+        token: tokenResponse.access_token,
+      });
+      const data = res.data;
+      const cleanRole = data.role ? data.role.replace("ROLE_", "") : "USER";
+
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("role", cleanRole);
+
+      toast.success("Signed up with Google successfully 🚀");
+      setTimeout(() => navigate("/user"), 800);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Google sign-up failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const googleSignUp = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: () => toast.error("Google sign-up failed"),
+  });
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
@@ -91,6 +129,31 @@ export default function Register() {
           <p className="text-sm text-gray-300">Create your professional account</p>
           <p className="text-xs text-indigo-300 mt-1">🔒 Secure • ✅ Verified • 🏢 Enterprise-Grade</p>
         </div>
+
+        {/* Google Sign-Up Button — only for USER role */}
+        {form.role === "USER" && (
+          <>
+            <button
+              onClick={() => googleSignUp()}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 hover:border-sky-400/50 transition-all duration-300 font-medium text-sm disabled:opacity-60"
+            >
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              Continue with Google
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/20" />
+              <span className="text-xs text-gray-400">OR register with email</span>
+              <div className="flex-1 h-px bg-white/20" />
+            </div>
+          </>
+        )}
 
         {/* Username */}
         <input
@@ -236,5 +299,14 @@ export default function Register() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Wrap with GoogleOAuthProvider so useGoogleLogin hook has context
+export default function Register() {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <RegisterInner />
+    </GoogleOAuthProvider>
   );
 }

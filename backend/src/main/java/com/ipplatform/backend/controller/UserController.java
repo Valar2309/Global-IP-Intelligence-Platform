@@ -62,6 +62,26 @@ public class UserController {
         ));
     }
 
+    // ── Google Login / Register ────────────────────────────────────────────────
+
+    /**
+     * POST /api/user/google
+     * Content-Type: application/json
+     * { "token": "<google_access_token>" }
+     * Finds or auto-creates a USER account via Google, returns JWT pair.
+     */
+    @PostMapping("/google")
+    public ResponseEntity<Map<String, Object>> googleAuth(@RequestBody Map<String, String> req) {
+        UserService.TokenPair tokens = userService.googleLoginOrRegister(req.get("token"));
+        return ResponseEntity.ok(Map.of(
+                "accessToken",  tokens.accessToken(),
+                "refreshToken", tokens.refreshToken(),
+                "username",     tokens.username(),
+                "role",         tokens.role(),
+                "userType",     tokens.userType()
+        ));
+    }
+
     // ── Login ──────────────────────────────────────────────────────────────────
 
     /**

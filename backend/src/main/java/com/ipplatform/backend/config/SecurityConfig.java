@@ -72,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/user/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/user/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/user/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/user/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/user/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/user/reset-password").permitAll()
 
