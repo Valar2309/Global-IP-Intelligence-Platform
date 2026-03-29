@@ -11,7 +11,17 @@ import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/LandingPage";
 import Login from "./Pages/Login";
 import Register from "./Pages/Register";
-import AdminDashboard from "./Pages/AdminDashboard";
+// import AdminDashboard from "./Pages/AdminDashboard";
+
+
+// ✅ Admin 
+import AdminLayout from "./Pages/Admin/AdminLayout";
+import AdminDashboardPage from "./Pages/Admin/AdminDashboardPage";
+import AdminApprovalsPage from "./Pages/Admin/AdminApprovalsPage";
+import AdminUsersPage from "./Pages/Admin/AdminUsersPage";
+import AdminApiHealthPage from "./Pages/Admin/AdminApiHealthPage";
+import AdminLogsPage from "./Pages/Admin/AdminLogsPage";
+
 
 /* 🔥 ANALYST STRUCTURE */
 
@@ -21,8 +31,7 @@ import AnalystSearchPage from "./Pages/Analyst/AnalystSearchPage";
 import AnalystVisualizationPage from "./Pages/Analyst/AnalystVisualizationPage";
 import AnalystExportPage from "./Pages/Analyst/AnalystExportPage";
 import AnalystAssetsPage from "./Pages/Analyst/AnalystAssetsPage";
-import AnalystStatusDashboard from "./Pages/Analyst/AnalystStatusDashboard";
-/* 🔥 NEW DETAIL PAGE */
+
 import PatentDetailPage from "./Pages/Analyst/PatentDetailPage";
 
 import UserLayout from "./Pages/User/UserLayout";
@@ -32,6 +41,7 @@ import UserWatchlistPage from "./Pages/User/UserWatchlistPage";
 import UserHistoryPage from "./Pages/User/UserHistoryPage";
 import UserPatentDetailPage from "./Pages/User/UserPatentDetailPage";
 import UserStatusDashboard from "./Pages/user/UserStatusDashboard";
+import UserSubscriptionsPage from "./Pages/User/UserSubscriptionsPage";
 export default function App() {
   useEffect(() => {
     initializeAdmin();
@@ -50,8 +60,16 @@ export default function App() {
 
         <Route path="/register" element={<Register />} />
 
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminLayout />}>
 
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="approvals" element={<AdminApprovalsPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="api-health" element={<AdminApiHealthPage />} />
+          <Route path="logs" element={<AdminLogsPage />} />
+
+        </Route>
         {/* 🔥 ANALYST ROUTES */}
 
         <Route path="/analyst" element={<AnalystLayout />}>
@@ -68,7 +86,7 @@ export default function App() {
           {/* PATENT DETAIL PAGE */}
 
           <Route path="patent/:lensId" element={<PatentDetailPage />} />
-          <Route path="status-dashboard" element={<AnalystStatusDashboard />} />
+          {/* <Route path="status-dashboard" element={<AnalystStatusDashboard />} /> */}
           <Route path="profile" element={<Profile />} />
         </Route>
 
@@ -79,7 +97,7 @@ export default function App() {
           <Route path="watchlist" element={<UserWatchlistPage />} />
           <Route path="history" element={<UserHistoryPage />} />
           <Route path="status-dashboard" element={<UserStatusDashboard />} />
-
+          <Route path="subscriptions" element={<UserSubscriptionsPage />} />
           {/* IMPORTANT */}
           <Route path="patent/:lensId" element={<UserPatentDetailPage />} />
           <Route path="profile" element={<Profile />} />

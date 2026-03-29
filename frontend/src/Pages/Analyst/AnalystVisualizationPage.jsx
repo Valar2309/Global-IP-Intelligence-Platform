@@ -1,335 +1,433 @@
 import { useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import {
-  PieChart, Pie, Cell,
   BarChart, Bar,
   LineChart, Line,
-  AreaChart, Area,
+  PieChart, Pie, Cell,
   XAxis, YAxis,
   Tooltip, Legend,
   CartesianGrid,
   ResponsiveContainer
 } from "recharts";
+import html2canvas from "html2canvas";
 
 export default function AnalystVisualizationPage() {
 
   const location = useLocation();
+
   const rawData = location.state?.results || [];
+  const trendRaw = location.state?.trendData || {};
+  const citationRaw = location.state?.citationData || {};
+  const familyRaw = location.state?.familyData || {};
 
-  const [tool, setTool] = useState("status");
-  const [filteredData, setFilteredData] = useState(rawData);
+  const [tool, setTool] = useState("trend");
+  const [view, setView] = useState("top");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [range, setRange] = useState("all");
 
-  /* ================= ANALYTICS ================= */
+  /* ================= TRANSFORM ================= */
 
-  const analytics = useMemo(() => {
+  const trendData = useMemo(() =>
+    Object.entries(trendRaw)
+      .map(([year, count]) => ({ year: Number(year), count }))
+      .sort((a,b)=>a.year-b.year)
+  , [trendRaw]);
 
-    const statusMap = {};
-    const countryMap = {};
-    const yearMap = {};
+  const citationData = useMemo(() =>
+    Object.entries(citationRaw).map(([id, arr]) => ({
+      id,
+      count: arr.length
+    }))
+  , [citationRaw]);
 
-    filteredData.forEach(p => {
-
-      const status = p.patentStatus || "UNKNOWN";
-      statusMap[status] = (statusMap[status] || 0) + 1;
-
-      const country = p.jurisdiction || "NA";
-      countryMap[country] = (countryMap[country] || 0) + 1;
-
-      if (p.datePublished) {
-        const year = new Date(p.datePublished).getFullYear();
-        yearMap[year] = (yearMap[year] || 0) + 1;
-      }
-
-    });
-
-    return {
-      status: Object.entries(statusMap).map(([k,v]) => ({ name:k, value:v })),
-      country: Object.entries(countryMap).map(([k,v]) => ({ name:k, value:v })),
-      trend: Object.keys(yearMap).sort().map(y => ({ year:y, filings:yearMap[y] }))
-    };
-
-  }, [filteredData]);
-
-  const COLORS = ["#6366f1","#10b981","#f59e0b","#ef4444"];
+  const familyData = useMemo(() =>
+    Object.entries(familyRaw).map(([id, arr]) => ({
+      id,
+      size: arr.length
+    }))
+  , [familyRaw]);
 
   /* ================= FILTER ================= */
 
-  const handleFilter = (key, value) => {
-    const newData = rawData.filter(p => {
-      if (key === "status") return p.patentStatus === value;
-      if (key === "country") return p.jurisdiction === value;
-      return true;
-    });
-    setFilteredData(newData);
+  const filteredTrend = useMemo(() => {
+    if (range === "all") return trendData;
+    const currentYear = new Date().getFullYear();
+    const limit = range === "5" ? 5 : 10;
+    return trendData.filter(d => d.year >= currentYear - limit);
+  }, [trendData, range]);
+
+  const filteredFamily = familyData.filter(f =>
+    f.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  /* ================= DERIVED ================= */
+
+  const topFamilies = [...filteredFamily].sort((a,b)=>b.size-a.size).slice(0,10);
+
+  const growthData = trendData.map((d,i,arr)=>({
+    year: d.year,
+    growth: i === 0 ? 0 : d.count - arr[i-1].count
+  }));
+
+  const compareData = trendData.map((d,i)=>({
+    year: d.year,
+    current: d.count,
+    previous: trendData[i-1]?.count || 0
+  }));
+
+  const familyDistribution = [
+    { name:"Small (1)", value: familyData.filter(f=>f.size === 1).length },
+    { name:"Medium (2-3)", value: familyData.filter(f=>f.size >=2 && f.size<=3).length },
+    { name:"Large (4+)", value: familyData.filter(f=>f.size >=4).length }
+  ];
+
+  const totalFamilies = familyData.length;
+  const avgFamilySize = totalFamilies
+    ? (familyData.reduce((a,b)=>a+b.size,0) / totalFamilies).toFixed(1)
+    : 0;
+
+  const totalCitations = citationData.reduce((a,b)=>a+b.count,0);
+
+  const topYear = [...trendData].sort((a,b)=>b.count-a.count)[0];
+
+  const topTable = [...familyData].sort((a,b)=>b.size-a.size).slice(0,5);
+
+  const smartInsight =
+    `🚀 Peak in ${topYear?.year}. Total families: ${totalFamilies}. Growth observed.`;
+
+  const COLORS = ["#6366f1","#10b981","#f59e0b","#ef4444"];
+
+  /* ================= EXPORT ================= */
+
+  const exportCSV = () => {
+    const rows = familyData.map(f => `${f.id},${f.size}`).join("\n");
+    const blob = new Blob(["ID,Size\n" + rows]);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "families.csv";
+    link.click();
   };
 
-  /* ================= AI ================= */
-
-  const aiInsight = useMemo(() => {
-
-    if (!filteredData.length) return "No data available.";
-
-    const topStatus = [...analytics.status].sort((a,b)=>b.value-a.value)[0];
-    const topCountry = [...analytics.country].sort((a,b)=>b.value-a.value)[0];
-
-    return `Most patents are ${topStatus?.name} and mainly from ${topCountry?.name}.`;
-
-  }, [analytics, filteredData]);
-
-  /* ================= UI ================= */
+  const exportImage = () => {
+    const chart = document.getElementById("chart");
+    html2canvas(chart).then(canvas => {
+      const link = document.createElement("a");
+      link.download = "chart.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  };
 
   return (
 
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1a2b] via-[#0a1424] to-[#020617] p-6 text-white space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] p-8 text-white space-y-10">
 
-      <h1 className="text-3xl font-bold text-indigo-400">
-          Patent Visualilzation 
+      {/* HEADER */}
+      <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient">
+        🚀 Ultimate Patent Dashboard
       </h1>
 
-      {/* STATS */}
+      {/* KPI */}
       <div className="grid md:grid-cols-4 gap-6">
-
-        <Stat title="Total" value={filteredData.length} />
-        <Stat title="Active" value={count(filteredData,"ACTIVE")} color="text-green-400"/>
-        <Stat title="Pending" value={count(filteredData,"PENDING")} color="text-yellow-400"/>
-        <Stat title="Discontinued" value={count(filteredData,"DISCONTINUED")} color="text-red-400"/>
-
+        <Card title="Patents" value={rawData.length}/>
+        <Card title="Families" value={totalFamilies}/>
+        <Card title="Avg Size" value={avgFamilySize}/>
+        <Card title="Citations" value={totalCitations}/>
       </div>
 
-      {/* MAIN */}
-      <div className="grid md:grid-cols-4 gap-6">
+      {/* INSIGHT */}
+      <div className="card hover-glow">
+        {smartInsight}
+      </div>
 
-        {/* LEFT PANEL */}
-        <div className="
-          bg-[#1e293b] p-5 rounded-xl border border-[#334155] space-y-4
-          transition-all duration-300
-          hover:shadow-[0_20px_60px_rgba(99,102,241,0.4)]
-        ">
-
-          <h3 className="text-indigo-400 font-semibold">Tools</h3>
-
-          {/* TOOL BUTTONS */}
-          <div className="grid grid-cols-2 gap-2">
-
-            {[
-              { key: "status", label: "📊 Status" },
-              { key: "country", label: "🌍 Country" },
-              { key: "trend", label: "📈 Trend" },
-              { key: "statusBar", label: "📦 Status Bar" },
-              { key: "countryPie", label: "🥧 Country Pie" },
-              { key: "trendArea", label: "🔥 Area" },
-            ].map((t) => (
-
-              <button
-                key={t.key}
-                onClick={() => setTool(t.key)}
-                className={`
-                  p-2 rounded-lg text-sm transition-all duration-300
-                  ${tool === t.key
-                    ? "bg-indigo-600 text-white shadow-lg scale-105"
-                    : "bg-[#0f172a] text-gray-400 hover:bg-indigo-500 hover:text-white hover:scale-105 hover:shadow-lg"}
-                `}
-              >
-                {t.label}
-              </button>
-
-            ))}
-
-          </div>
-
-          {/* AI PANEL */}
-          <div className="
-            bg-[#0f172a] p-4 rounded-lg border border-indigo-500/30
-            transition-all duration-300
-            hover:shadow-[0_10px_40px_rgba(99,102,241,0.5)]
-            hover:border-indigo-400
-          ">
-            <p className="text-indigo-400 text-sm">🤖 AI Insight</p>
-            <p className="text-gray-300 text-sm mt-2">{aiInsight}</p>
-          </div>
-
-          <button
-            onClick={()=>setFilteredData(rawData)}
-            className="
-              w-full bg-indigo-600 py-2 rounded
-              transition-all duration-300
-              hover:bg-indigo-500
-              hover:scale-105
-              hover:shadow-[0_10px_30px_rgba(99,102,241,0.6)]
-            "
-          >
-            Reset Filter
+      {/* CONTROLS */}
+      <div className="flex flex-wrap gap-3">
+        {["trend","growth","family","distribution","compare","citation"].map(t=>(
+          <button key={t} onClick={()=>setTool(t)} className={`btn ${tool===t?"active":""}`}>
+            {t}
           </button>
+        ))}
+        <button onClick={exportCSV} className="btn green">CSV</button>
+        {/* <button onClick={exportImage} className="btn purple">Image</button> */}
+        <button onClick={()=>window.location.reload()} className="btn red">Refresh</button>
+      </div>
 
-        </div>
+      {/* SEARCH + RANGE */}
+      <div className="flex flex-wrap gap-4">
+        <input
+          placeholder="🔍 Search patent..."
+          value={search}
+          onChange={(e)=>setSearch(e.target.value)}
+          className="input"
+        />
 
-        {/* RIGHT PANEL */}
-        <div className="md:col-span-3">
+        {["5","10","all"].map(r=>(
+          <button key={r} onClick={()=>setRange(r)} className={`btn ${range===r?"active":""}`}>
+            {r==="all"?"All":`${r}Y`}
+          </button>
+        ))}
+      </div>
 
-          <div className="
-            relative
-            bg-gradient-to-br from-[#1e293b] to-[#172033]
-            p-6 rounded-xl border border-[#334155]
-            shadow-xl
-            transition-all duration-500
-            hover:-translate-y-3
-            hover:scale-[1.02]
-            hover:shadow-[0_30px_100px_rgba(99,102,241,0.7)]
-            hover:border-indigo-400
-            group
-          ">
+      {/* CHART */}
+      <div id="chart" className="card hover-lift">
 
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-indigo-500/10 blur-xl rounded-xl"></div>
+        {tool === "trend" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={filteredTrend}>
+              <CartesianGrid strokeDasharray="3 3"/>
+              <XAxis dataKey="year"/>
+              <YAxis/>
+              <Tooltip/>
+              <Line dataKey="count" stroke="#10b981"/>
+            </LineChart>
+          </ResponsiveContainer>
+        )}
 
-            <div className="relative z-10 transition-all duration-300 group-hover:scale-[1.01]">
+        {tool === "growth" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={growthData}>
+              <XAxis dataKey="year"/>
+              <YAxis/>
+              <Tooltip/>
+              <Bar dataKey="growth" fill="#22c55e"/>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
 
-              {/* STATUS PIE */}
-              {tool === "status" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Status Distribution</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
+        {tool === "family" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={view==="top"?topFamilies:filteredFamily}>
+              <XAxis dataKey="id"/>
+              <YAxis/>
+              <Tooltip/>
+              <Bar dataKey="size" fill="#6366f1" onClick={(d)=>setSelected(d)}/>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
 
-                  <ResponsiveContainer width="100%" height={350}>
-                    <PieChart>
-                      <Pie data={analytics.status} dataKey="value"
-                        onClick={(d)=>handleFilter("status", d.name)}
-                      >
-                        {analytics.status.map((_,i)=>(
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip/><Legend/>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </>
-              )}
+        {tool === "distribution" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie data={familyDistribution} dataKey="value">
+                {familyDistribution.map((_,i)=>(
+                  <Cell key={i} fill={COLORS[i]} />
+                ))}
+              </Pie>
+              <Tooltip/><Legend/>
+            </PieChart>
+          </ResponsiveContainer>
+        )}
 
-              {/* COUNTRY BAR */}
-              {tool === "country" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Country Distribution</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
+        {tool === "compare" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={compareData}>
+              <XAxis dataKey="year"/>
+              <YAxis/>
+              <Tooltip/><Legend/>
+              <Bar dataKey="current" fill="#6366f1"/>
+              <Bar dataKey="previous" fill="#10b981"/>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
 
-                  <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analytics.country}>
-                      <CartesianGrid strokeDasharray="3 3"/>
-                      <XAxis dataKey="name"/>
-                      <YAxis/>
-                      <Tooltip/>
-                      <Bar dataKey="value" fill="#6366f1"
-                        onClick={(d)=>handleFilter("country", d.name)}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </>
-              )}
-
-              {/* TREND LINE */}
-              {tool === "trend" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Year Trend</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
-
-                  <ResponsiveContainer width="100%" height={350}>
-                    <LineChart data={analytics.trend}>
-                      <CartesianGrid strokeDasharray="3 3"/>
-                      <XAxis dataKey="year"/>
-                      <YAxis/>
-                      <Tooltip/>
-                      <Line dataKey="filings" stroke="#10b981"/>
-                    </LineChart>
-                  </ResponsiveContainer>
-                </>
-              )}
-
-              {/* STATUS BAR */}
-              {tool === "statusBar" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Status Bar</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
-
-                  <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analytics.status}>
-                      <XAxis dataKey="name"/>
-                      <YAxis/>
-                      <Tooltip/>
-                      <Bar dataKey="value" fill="#f59e0b"/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </>
-              )}
-
-              {/* COUNTRY PIE */}
-              {tool === "countryPie" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Country Pie</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
-
-                  <ResponsiveContainer width="100%" height={350}>
-                    <PieChart>
-                      <Pie data={analytics.country} dataKey="value">
-                        {analytics.country.map((_,i)=>(
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip/><Legend/>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </>
-              )}
-
-              {/* TREND AREA */}
-              {tool === "trendArea" && (
-                <>
-                  <h3 className="text-indigo-400 mb-2 font-semibold">Trend Area</h3>
-                  <div className="h-[1px] bg-white/10 mb-4"></div>
-
-                  <ResponsiveContainer width="100%" height={350}>
-                    <AreaChart data={analytics.trend}>
-                      <XAxis dataKey="year"/>
-                      <YAxis/>
-                      <Tooltip/>
-                      <Area dataKey="filings" stroke="#6366f1" fill="#6366f1"/>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </>
-              )}
-
-            </div>
-
-          </div>
-
-        </div>
+        {tool === "citation" && (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={citationData}>
+              <XAxis dataKey="id"/>
+              <YAxis/>
+              <Tooltip/>
+              <Bar dataKey="count" fill="#f59e0b"/>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
 
       </div>
 
+      {/* TABLE */}
+      <div className="card hover-lift">
+        <h3 className="text-indigo-400 mb-3">Top Families</h3>
+        <table className="w-full text-sm">
+          <tbody>
+            {topTable.map((f,i)=>(
+              <tr key={i} className="border-t border-[#334155] hover:bg-[#0f172a] transition">
+                <td>{f.id}</td>
+                <td>{f.size}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* DRILL */}
+      {selected && (
+        <div className="card hover-glow">
+          Selected: {selected.id} → {selected.size}
+        </div>
+      )}
+
+      {/* STYLES */}
+      <style jsx>{`
+  /* 🌌 Background glow blobs */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(99,102,241,0.4), transparent);
+    filter: blur(120px);
+    z-index: 0;
+  }
+
+  body::before {
+    top: -100px;
+    left: -100px;
+  }
+
+  body::after {
+    bottom: -100px;
+    right: -100px;
+    background: radial-gradient(circle, rgba(168,85,247,0.4), transparent);
+  }
+
+  /* 🧊 Glass Card */
+  .card {
+    background: rgba(15,23,42,0.6);
+    backdrop-filter: blur(20px);
+    padding:22px;
+    border-radius:20px;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow: 
+      0 10px 30px rgba(0,0,0,0.7),
+      inset 0 1px 1px rgba(255,255,255,0.05);
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 🌈 Animated border */
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius:20px;
+    padding:1px;
+    background: linear-gradient(120deg,#6366f1,#9333ea,#ec4899);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: 0.4s;
+  }
+
+  .card:hover::after {
+    opacity: 1;
+  }
+
+  /* 🚀 Floating hover */
+  .hover-lift:hover {
+    transform: translateY(-10px) scale(1.04);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.9),
+      0 0 25px rgba(99,102,241,0.4);
+  }
+
+  /* 💡 Glow */
+  .hover-glow:hover {
+    box-shadow:
+      0 0 20px rgba(99,102,241,0.6),
+      0 0 40px rgba(139,92,246,0.6),
+      0 0 60px rgba(168,85,247,0.5);
+  }
+
+  /* 📊 Chart effect */
+  #chart {
+    transition: all 0.4s ease;
+  }
+
+  #chart:hover {
+    transform: scale(1.03);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.9);
+  }
+
+  /* 🎯 Buttons (Neon style) */
+  .btn {
+    padding:9px 16px;
+    border-radius:12px;
+    background: rgba(30,41,59,0.8);
+    border:1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .btn:hover {
+    transform: translateY(-2px) scale(1.08);
+    background: #6366f1;
+    box-shadow:
+      0 0 10px #6366f1,
+      0 0 25px rgba(99,102,241,0.7);
+  }
+
+  .btn.active {
+    background:#6366f1;
+    box-shadow:0 0 15px #6366f1;
+  }
+
+  .btn.green:hover { background:#10b981; }
+  .btn.purple:hover { background:#9333ea; }
+  .btn.red:hover { background:#ef4444; }
+
+  /* 🔍 Input premium */
+  .input {
+    background: rgba(15,23,42,0.8);
+    padding:10px 14px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    transition: 0.3s;
+  }
+
+  .input:focus {
+    outline:none;
+    border-color:#6366f1;
+    box-shadow:
+      0 0 10px #6366f1,
+      0 0 25px rgba(99,102,241,0.5);
+  }
+
+  /* 🌈 Animated heading */
+  .animate-gradient {
+    background-size:300%;
+    animation: gradientMove 4s linear infinite;
+  }
+
+  @keyframes gradientMove {
+    0% {background-position:0%}
+    100% {background-position:100%}
+  }
+
+  /* 📊 Table */
+  table tr {
+    transition: all 0.3s ease;
+  }
+
+  table tr:hover {
+    background: rgba(99,102,241,0.1);
+    transform: scale(1.02);
+  }
+`}</style>
+
     </div>
   );
 }
 
-/* COMPONENTS */
-
-function Stat({ title, value, color="text-indigo-400" }) {
+function Card({ title, value }) {
   return (
-    <div className="
-      bg-[#1e293b] p-5 rounded-xl border border-[#334155]
-      shadow-lg
-      transition-all duration-300
-      hover:-translate-y-2
-      hover:scale-105
-      hover:shadow-[0_20px_50px_rgba(99,102,241,0.6)]
-      hover:border-indigo-400
-      cursor-pointer
-    ">
+    <div className="card hover-lift">
       <p className="text-gray-400 text-sm">{title}</p>
-      <h2 className={`text-2xl font-bold ${color}`}>{value}</h2>
+      <h2 className="text-xl font-bold text-indigo-400">{value}</h2>
     </div>
   );
 }
-
-function count(data, status) {
-  return data.filter(p => p.patentStatus === status).length;
-}
-
-
-

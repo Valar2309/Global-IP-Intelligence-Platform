@@ -26,7 +26,7 @@ export default function Login() {
     console.log("Google user:", decoded);
 
     try {
-      const res = await axios.post("http://localhost:8082/api/auth/google", {
+      const res = await axios.post("http://localhost:8081/api/auth/google", {
         token: credentialResponse.credential,
       });
 
@@ -65,10 +65,10 @@ export default function Login() {
       setLoading(true);
       let endpoint =
         form.role === "ADMIN"
-          ? "http://localhost:8082/api/admin/login"
+          ? "http://localhost:8081/api/admin/login"
           : form.role === "ANALYST"
-          ? "http://localhost:8082/api/analyst/login"
-          : "http://localhost:8082/api/user/login";
+          ? "http://localhost:8081/api/analyst/login"
+          : "http://localhost:8081/api/user/login";
 
       const res = await axios.post(endpoint, {
         username: form.username,

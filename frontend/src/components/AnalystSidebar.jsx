@@ -86,10 +86,6 @@ export default function AnalystSidebar() {
           Export
         </NavLink>
 
-        <NavLink to="/analyst/status-dashboard" className={linkStyle}>
-          <Activity size={18} />
-          Status Dashboard
-        </NavLink>
 
         <NavLink to="/analyst/profile" className={linkStyle}>
           <User size={18} />

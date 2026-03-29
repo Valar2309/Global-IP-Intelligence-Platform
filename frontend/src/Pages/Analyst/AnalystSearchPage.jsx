@@ -170,16 +170,44 @@ export default function AnalystSearchPage() {
         >
           ⬇ Export
         </button>
+         <button
+  onClick={async () => {
 
-        <button
-          onClick={() => {
-            if (!results.length) return alert("Search first!");
-            navigate("/analyst/visualization", { state: { results } });
-          }}
-          className="btn-gradient"
-        >
-          📊 Dashboard
-        </button>
+    if (!results.length) return alert("Search first!");
+
+    try {
+
+      const keyword = filters.keyword;
+
+      // ✅ CALL ALL 3 APIs
+      const [trendRes, citationRes, familyRes] = await Promise.all([
+        axios.get(`http://localhost:8081/api/visualization/trends?keyword=${keyword}`),
+        axios.get(`http://localhost:8081/api/visualization/citations?keyword=${keyword}`),
+        axios.get(`http://localhost:8081/api/visualization/families?keyword=${keyword}`)
+      ]);
+
+      navigate("/analyst/visualization", {
+        state: {
+          results,
+          trendData: trendRes.data,
+          citationData: citationRes.data,
+          familyData: familyRes.data
+        }
+      });
+
+    } catch (err) {
+      console.error(err);
+      alert("Visualization API error");
+    }
+
+  }}
+  className="btn-gradient"
+>
+  📊 Dashboard
+</button>
+         
+         
+
       </div>
 
       {/* RESULTS */}
