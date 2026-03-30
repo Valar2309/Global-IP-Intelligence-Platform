@@ -38,7 +38,7 @@ public class OAuth2AuthenticationSuccessHandler
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${oauth2.redirect-uri:http://localhost:3000/oauth2/callback}")
+    @Value("${oauth2.redirect-uri}")
     private String redirectUri;
 
     @Value("${auth.refresh-token-expiry-days:7}")

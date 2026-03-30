@@ -10,7 +10,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     @Value("${app.mail-from:noreply@ipplatform.com}")
