@@ -77,6 +77,7 @@ public class UserController {
                 "accessToken",  tokens.accessToken(),
                 "refreshToken", tokens.refreshToken(),
                 "username",     tokens.username(),
+                "email",        tokens.email() != null ? tokens.email() : "",
                 "role",         tokens.role(),
                 "userType",     tokens.userType()
         ));
@@ -111,6 +112,7 @@ public class UserController {
                 "accessToken",  tokens.accessToken(),
                 "refreshToken", tokens.refreshToken(),
                 "username",     tokens.username(),
+                "email",        tokens.email() != null ? tokens.email() : "",
                 "role",         tokens.role(),
                 "userType",     tokens.userType()
         ));

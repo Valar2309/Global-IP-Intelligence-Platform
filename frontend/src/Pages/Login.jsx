@@ -27,7 +27,7 @@ function LoginInner() {
     }
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/api/auth/google`, {
+      const res = await axios.post(`${BACKEND_URL}/api/user/google`, {
         token: tokenResponse.access_token, // Fixed credential reference
       });
 
@@ -37,6 +37,8 @@ function LoginInner() {
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("role", cleanRole);
+      localStorage.setItem("username", data.username);
+      localStorage.setItem("email", data.email);
 
       toast.success("Google login successful 🚀");
 
@@ -84,6 +86,8 @@ function LoginInner() {
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("role", cleanRole);
+      localStorage.setItem("username", data.username);
+      localStorage.setItem("email", data.email);
 
       toast.success("Login successful 🚀");
 

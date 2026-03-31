@@ -10,7 +10,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/legal-status")
-@CrossOrigin
 public class LegalStatusController {
 
     private final LegalStatusService legalStatusService;

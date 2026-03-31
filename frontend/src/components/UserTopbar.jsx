@@ -6,7 +6,7 @@ export default function UserTopbar(){
   const navigate = useNavigate();
 
   const username = localStorage.getItem("username") || "User";
-  const email = localStorage.getItem("email") || "user@email.com";
+  const email = localStorage.getItem("email") || "";
 
   const logout = () => {
 

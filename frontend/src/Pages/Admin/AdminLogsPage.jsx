@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../services/api";
 import { toast } from "react-toastify";
 import { ScrollText, Loader2 } from "lucide-react";
 
-const BASE = "http://localhost:8081";
+// Activity Logs Page
 
 const ACTION_COLORS = {
   ANALYST_APPROVED:     "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
@@ -33,9 +33,6 @@ function formatDate(iso) {
 }
 
 export default function AdminLogsPage() {
-  const token = localStorage.getItem("accessToken");
-  const authHeaders = () => ({ Authorization: `Bearer ${token}` });
-
   const [logs,        setLogs]        = useState([]);
   const [logTotal,    setLogTotal]    = useState(0);
   const [logPage,     setLogPage]     = useState(0);
@@ -47,10 +44,10 @@ export default function AdminLogsPage() {
   const fetchLogs = async (page, act, reset = false) => {
     reset ? setLoading(true) : setLoadingMore(true);
     try {
-      const params = new URLSearchParams({ page, size: 20 });
-      if (act && act !== "ALL") params.append("action", act);
+      const params = { page, size: 20 };
+      if (act && act !== "ALL") params.action = act;
 
-      const res = await axios.get(`${BASE}/api/admin/logs?${params}`, { headers: authHeaders() });
+      const res = await api.get("/api/admin/logs", { params });
       const data = res.data;
 
       setLogs(prev => reset ? data.content : [...prev, ...data.content]);

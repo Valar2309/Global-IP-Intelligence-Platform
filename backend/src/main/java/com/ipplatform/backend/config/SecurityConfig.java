@@ -17,6 +17,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -43,12 +44,16 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Only allow the specified frontend (local or production Vercel)
-        configuration.setAllowedOrigins(List.of(frontendUrl));
+        // Support multiple comma-separated origins (e.g. Production,Localhost)
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            List<String> origins = Arrays.asList(frontendUrl.split(","));
+            configuration.setAllowedOrigins(origins);
+        }
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
-        configuration.setAllowCredentials(true); // Allow cookies/headers if needed
-        configuration.setMaxAge(3600L); // Cache CORS pre-flight response for 1 hour
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ip-assets")
-@CrossOrigin
 public class IpAssetController {
 
     @Autowired

@@ -305,8 +305,8 @@ public class UserService {
                 user.getUsername(), expiresAt, rememberMe);
         refreshTokenRepository.save(rt);
 
-        return new TokenPair(access, rawRefresh, user.getUsername(), "ROLE_USER", "USER");
-    }
+        return new TokenPair(access, rawRefresh, user.getUsername(), user.getEmail(), "ROLE_USER", "USER");
+}
 
     private void validatePassword(String p) {
         if (p == null || p.length() < 8)
@@ -318,5 +318,5 @@ public class UserService {
     }
 
     public record TokenPair(String accessToken, String refreshToken,
-                             String username, String role, String userType) {}
+                             String username, String email, String role, String userType) {}
 }

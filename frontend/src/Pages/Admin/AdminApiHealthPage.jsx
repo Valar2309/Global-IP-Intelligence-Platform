@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../services/api";
 import { toast } from "react-toastify";
 import { Activity, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-const BASE = "http://localhost:8081";
+// API Health Dashboard
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -14,16 +14,13 @@ function formatDate(iso) {
 }
 
 export default function AdminApiHealthPage() {
-  const token = localStorage.getItem("accessToken");
-  const authHeaders = () => ({ Authorization: `Bearer ${token}` });
-
   const [health,    setHealth]    = useState(null);
   const [checking,  setChecking]  = useState(false);
 
   const fetchHealth = async () => {
     setChecking(true);
     try {
-      const res = await axios.get(`${BASE}/api/admin/health`, { headers: authHeaders() });
+      const res = await api.get("/api/admin/health");
       setHealth(res.data);
     } catch (err) {
       setHealth({
